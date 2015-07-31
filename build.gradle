@@ -1,0 +1,78 @@
+
+
+subprojects {
+	apply plugin: 'java'  
+	
+	dependencies {
+		compile fileTree('../libs/')
+	}
+	
+	buildDir = file('../builds/' + project.name)
+	
+	sourceSets {
+		main {
+			java {
+				srcDirs = ['../src']
+				include 'net/fybertech/' + project.name + '/**'
+			}
+		}
+	}
+}
+
+
+project(':meddle') {
+	
+	version = '1.0'
+	
+}
+
+
+project(':firespread') {
+	
+	version = '15w31c-1.0'
+	
+	jar {
+		manifest {
+			attributes('TweakClass' : 'net.fybertech.firespread.FireTweaker')
+		}        
+	}
+}
+
+
+project(':alltheitems') {
+	
+	version = '15w31a-1.0'
+	
+	jar {
+		manifest {
+			attributes('TweakClass' : 'net.fybertech.alltheitems.AllTheItems')
+		}        
+	}
+	
+}
+
+
+project(':leafdecay') {
+	
+	version = '15w31c-1.0'
+	
+	jar {
+		manifest {
+			attributes('TweakClass' : 'net.fybertech.leafdecay.LeafDecay')
+		}        
+	}
+	
+}
+
+project(':physicsfix') {
+	
+	version = '15w31a-1.0'
+	
+	jar {
+		manifest {
+			attributes('TweakClass' : 'net.fybertech.physicsfix.PhysicsTweaker')
+		}        
+	}
+	
+}
+
