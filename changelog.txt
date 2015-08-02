@@ -1,0 +1,9 @@
+v1.1
+ - Sorted listFiles to help ensure some degree of predictability to mod load order
+ - Added getVersion() for whenever that becomes relevant
+ - Added MeddleUtil.findMinecraftVersion()
+ - Changed to two-stage loading so that tweak classes are actually added to launchwrapper tweaks list
+ - Added TransformerClass manifest attribute to allow using ITransformer classes directly
+ - Added dynamic class mappings system to help avoid updating mods as frequently
+ 
+ 

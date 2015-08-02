@@ -1,5 +1,5 @@
 {
-  "id": "15w31a-meddle",
+  "id": "15w31c-meddle",
   "time": "2015-07-29T09:24:33-04:00",
   "releaseTime": "2015-07-29T09:24:33-04:00",
   "type": "snapshot",
@@ -198,7 +198,7 @@
       "name": "org.ow2.asm:asm-all:5.0.3"
     },
     {
-      "name": "net.fybertech:meddle:1.0",
+      "name": "net.fybertech:meddle:1.1",
       "url": "http://www.fybertech.net/maven/"
     }
   ],

@@ -1,0 +1,20 @@
+{
+    "+libraries": [
+        {
+            "name": "net.minecraft:launchwrapper:1.11"
+        },
+        {
+            "name": "org.ow2.asm:asm-all:5.0.3"
+        },
+        {
+            "name": "net.fybertech:meddle:1.1",
+            "url": "http://www.fybertech.net/maven/"
+        }
+    ],
+    "mainClass": "net.minecraft.launchwrapper.Launch",
+    "+minecraftArguments": "  --tweakClass net.fybertech.meddle.Meddle",
+    "fileId": "meddle-1.1",
+    "name": "Meddle",
+    "order": 1,
+    "version": "1.1"
+}

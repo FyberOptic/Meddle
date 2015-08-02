@@ -21,16 +21,20 @@ subprojects {
 
 
 project(':meddle') {
-	
-	version = '1.0'
+    
+	version = '1.1'
 	
 }
 
 
 project(':firespread') {
 	
-	version = '15w31c-1.0'
-	
+	version = 'dynamic-1.1'
+    
+    dependencies {
+        compile project(':meddle')
+    }
+
 	jar {
 		manifest {
 			attributes('TweakClass' : 'net.fybertech.firespread.FireTweaker')
@@ -41,7 +45,11 @@ project(':firespread') {
 
 project(':alltheitems') {
 	
-	version = '15w31a-1.0'
+	version = 'dynamic-1.1'
+    
+    dependencies {
+        compile project(':meddle')
+    }
 	
 	jar {
 		manifest {
@@ -54,7 +62,11 @@ project(':alltheitems') {
 
 project(':leafdecay') {
 	
-	version = '15w31c-1.0'
+	version = 'dynamic-1.1'
+    
+    dependencies {
+        compile project(':meddle')
+    }
 	
 	jar {
 		manifest {
@@ -66,7 +78,11 @@ project(':leafdecay') {
 
 project(':physicsfix') {
 	
-	version = '15w31a-1.0'
+	version = 'dynamic-1.1'
+    
+    dependencies {
+        compile project(':meddle')
+    }
 	
 	jar {
 		manifest {
