@@ -11,12 +11,14 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
+import net.fybertech.dynamicmappings.DynamicMappings;
 import net.fybertech.meddle.Meddle;
-import net.fybertech.meddle.mappings.DynamicMappings;
+import net.fybertech.meddle.MeddleMod;
 import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.launchwrapper.ITweaker;
 import net.minecraft.launchwrapper.LaunchClassLoader;
 
+@MeddleMod(id="leafdecay", name="LeafDecay", author="FyberOptic", version="1.2", depends={"dynamicmappings"})
 public class LeafDecay implements ITweaker, IClassTransformer {
 
 	String blockLeavesBaseClass = DynamicMappings.getClassMapping("net/minecraft/block/BlockLeavesBase");

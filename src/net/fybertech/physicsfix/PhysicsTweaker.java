@@ -12,12 +12,14 @@ import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
+import net.fybertech.dynamicmappings.DynamicMappings;
 import net.fybertech.meddle.Meddle;
-import net.fybertech.meddle.mappings.DynamicMappings;
+import net.fybertech.meddle.MeddleMod;
 import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.launchwrapper.ITweaker;
 import net.minecraft.launchwrapper.LaunchClassLoader;
 
+@MeddleMod(id="physicsfix", name="PhysicsFix", author="FyberOptic", version="1.2", depends={"dynamicmappings"})
 public class PhysicsTweaker implements ITweaker, IClassTransformer
 {
 	String entityLivingBaseClass = DynamicMappings.getClassMapping("net/minecraft/entity/EntityLivingBase");
@@ -25,6 +27,7 @@ public class PhysicsTweaker implements ITweaker, IClassTransformer
 
 	// public void moveEntityWithHeading(float strafe, float forward)
 	String moveEntityWithHeadingDesc = "(FF)V";
+
 
 
 	@Override

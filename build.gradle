@@ -22,17 +22,18 @@ subprojects {
 
 project(':meddle') {
     
-	version = '1.1'
+	version = '1.2'
 	
 }
 
 
 project(':firespread') {
 	
-	version = 'dynamic-1.1'
+	version = 'dynamic-1.2'
     
     dependencies {
         compile project(':meddle')
+		compile project(':dynamicmappings');
     }
 
 	jar {
@@ -45,10 +46,11 @@ project(':firespread') {
 
 project(':alltheitems') {
 	
-	version = 'dynamic-1.1'
+	version = 'dynamic-1.2'
     
     dependencies {
         compile project(':meddle')
+		compile project(':dynamicmappings');
     }
 	
 	jar {
@@ -62,10 +64,11 @@ project(':alltheitems') {
 
 project(':leafdecay') {
 	
-	version = 'dynamic-1.1'
+	version = 'dynamic-1.2'
     
     dependencies {
         compile project(':meddle')
+		compile project(':dynamicmappings');
     }
 	
 	jar {
@@ -76,18 +79,55 @@ project(':leafdecay') {
 	
 }
 
+
 project(':physicsfix') {
 	
-	version = 'dynamic-1.1'
+	version = 'dynamic-1.2'
     
     dependencies {
         compile project(':meddle')
+		compile project(':dynamicmappings');
     }
 	
 	jar {
 		manifest {
 			attributes('TweakClass' : 'net.fybertech.physicsfix.PhysicsTweaker')
 		}        
+	}
+	
+}
+
+
+project(':babybuster') {
+	
+	version = 'dynamic-1.2'
+	
+	dependencies {
+        compile project(':meddle')
+		compile project(':dynamicmappings');
+	}
+	
+	jar {
+		manifest {
+			attributes('TweakClass' : 'net.fybertech.babybuster.ZombieTweak')
+		}
+	}
+	
+}
+
+
+project(':dynamicmappings') {
+	
+	version = '002'
+	
+	dependencies {
+		compile project(':meddle')
+	}
+	
+	jar {
+		manifest {
+			attributes('TweakClass' : 'net.fybertech.dynamicmappings.Tweaker')
+		}
 	}
 	
 }

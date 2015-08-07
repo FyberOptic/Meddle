@@ -12,13 +12,15 @@ import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
+import net.fybertech.dynamicmappings.DynamicMappings;
 import net.fybertech.meddle.Meddle;
-import net.fybertech.meddle.mappings.DynamicMappings;
+import net.fybertech.meddle.MeddleMod;
 import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.launchwrapper.ITweaker;
 import net.minecraft.launchwrapper.LaunchClassLoader;
 
-public class FireTweaker  implements ITweaker, IClassTransformer
+@MeddleMod(id="firespread", name="FireSpread", author="FyberOptic", version="1.2", depends={"dynamicmappings"})
+public class FireTweaker implements ITweaker, IClassTransformer
 {
 	String blockFireClass = DynamicMappings.getClassMapping("net/minecraft/block/BlockFire");
 	String worldClass = DynamicMappings.getClassMapping("net/minecraft/world/World");
