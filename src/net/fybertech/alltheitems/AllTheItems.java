@@ -22,7 +22,7 @@ import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.launchwrapper.ITweaker;
 import net.minecraft.launchwrapper.LaunchClassLoader;
 
-@MeddleMod(id="alltheitems", name="AllTheItems", author="FyberOptic", version="1.2", depends={"dynamicmappings"})
+@MeddleMod(id="alltheitems", name="AllTheItems", author="FyberOptic", version="1.2.1", depends={"dynamicmappings"})
 public class AllTheItems implements ITweaker, IClassTransformer
 {
 	String entityItemClass = DynamicMappings.getClassMapping("net.minecraft.entity.item.EntityItem");

@@ -19,7 +19,7 @@ import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.launchwrapper.ITweaker;
 import net.minecraft.launchwrapper.LaunchClassLoader;
 
-@MeddleMod(id="firespread", name="FireSpread", author="FyberOptic", version="1.2", depends={"dynamicmappings"})
+@MeddleMod(id="firespread", name="FireSpread", author="FyberOptic", version="1.2.1", depends={"dynamicmappings"})
 public class FireTweaker implements ITweaker, IClassTransformer
 {
 	String blockFireClass = DynamicMappings.getClassMapping("net/minecraft/block/BlockFire");

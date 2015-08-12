@@ -7,7 +7,7 @@ import net.fybertech.meddle.MeddleMod;
 import net.minecraft.launchwrapper.ITweaker;
 import net.minecraft.launchwrapper.LaunchClassLoader;
 
-@MeddleMod(id="babybuster", name="BabyBuster", author="FyberOptic", version="1.2", depends={"dynamicmappings"})
+@MeddleMod(id="babybuster", name="BabyBuster", author="FyberOptic", version="1.2.1", depends={"dynamicmappings"})
 public class ZombieTweak implements ITweaker
 {
 

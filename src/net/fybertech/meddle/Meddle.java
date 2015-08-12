@@ -69,7 +69,7 @@ public class Meddle implements ITweaker {
 
 	public static String getVersion()
 	{
-		return "1.2";
+		return "1.2.1";
 	}
 
 

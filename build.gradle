@@ -7,6 +7,8 @@ subprojects {
 		compile fileTree('../libs/')
 	}
 	
+	sourceCompatibility = '1.7'
+	
 	buildDir = file('../builds/' + project.name)
 	
 	sourceSets {
@@ -17,19 +19,25 @@ subprojects {
 			}
 		}
 	}
+	
+	gradle.projectsEvaluated {
+        tasks.withType(JavaCompile) {
+            options.compilerArgs << "-Xlint:unchecked"
+        }
+    }
 }
 
 
 project(':meddle') {
     
-	version = '1.2'
+	version = '1.2.1'
 	
 }
 
 
 project(':firespread') {
 	
-	version = 'dynamic-1.2'
+	version = 'dynamic-1.2.1'
     
     dependencies {
         compile project(':meddle')
@@ -46,7 +54,7 @@ project(':firespread') {
 
 project(':alltheitems') {
 	
-	version = 'dynamic-1.2'
+	version = 'dynamic-1.2.1'
     
     dependencies {
         compile project(':meddle')
@@ -64,7 +72,7 @@ project(':alltheitems') {
 
 project(':leafdecay') {
 	
-	version = 'dynamic-1.2'
+	version = 'dynamic-1.2.1'
     
     dependencies {
         compile project(':meddle')
@@ -82,7 +90,7 @@ project(':leafdecay') {
 
 project(':physicsfix') {
 	
-	version = 'dynamic-1.2'
+	version = 'dynamic-1.2.1'
     
     dependencies {
         compile project(':meddle')
@@ -100,7 +108,7 @@ project(':physicsfix') {
 
 project(':babybuster') {
 	
-	version = 'dynamic-1.2'
+	version = 'dynamic-1.2.1'
 	
 	dependencies {
         compile project(':meddle')
@@ -118,7 +126,7 @@ project(':babybuster') {
 
 project(':dynamicmappings') {
 	
-	version = '002'
+	version = '004-alpha'
 	
 	dependencies {
 		compile project(':meddle')
@@ -130,5 +138,16 @@ project(':dynamicmappings') {
 		}
 	}
 	
+}
+
+project(':servergenerator') {
+
+    version = '1.0.1'
+    
+    jar {
+        manifest {
+            attributes('Main-Class' : 'net.fybertech.servergenerator.ServerGenerator')
+        }
+    }   
 }
 

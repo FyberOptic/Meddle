@@ -19,7 +19,7 @@ import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.launchwrapper.ITweaker;
 import net.minecraft.launchwrapper.LaunchClassLoader;
 
-@MeddleMod(id="physicsfix", name="PhysicsFix", author="FyberOptic", version="1.2", depends={"dynamicmappings"})
+@MeddleMod(id="physicsfix", name="PhysicsFix", author="FyberOptic", version="1.2.1", depends={"dynamicmappings"})
 public class PhysicsTweaker implements ITweaker, IClassTransformer
 {
 	String entityLivingBaseClass = DynamicMappings.getClassMapping("net/minecraft/entity/EntityLivingBase");

@@ -18,7 +18,7 @@ import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.launchwrapper.ITweaker;
 import net.minecraft.launchwrapper.LaunchClassLoader;
 
-@MeddleMod(id="leafdecay", name="LeafDecay", author="FyberOptic", version="1.2", depends={"dynamicmappings"})
+@MeddleMod(id="leafdecay", name="LeafDecay", author="FyberOptic", version="1.2.1", depends={"dynamicmappings"})
 public class LeafDecay implements ITweaker, IClassTransformer {
 
 	String blockLeavesBaseClass = DynamicMappings.getClassMapping("net/minecraft/block/BlockLeavesBase");
