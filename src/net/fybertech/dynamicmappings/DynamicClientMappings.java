@@ -20,32 +20,41 @@ import org.objectweb.asm.tree.TypeInsnNode;
 
 public class DynamicClientMappings
 {
-	static ClassNode cn_Main = null;
-	static ClassNode cn_Minecraft = null;
-	static ClassNode cn_GameConfiguration = null;
-	static ClassNode cn_RenderItem = null;
-	static ClassNode cn_ItemModelMesher = null;
-	static ClassNode cn_GuiMainMenu = null;
-	static ClassNode cn_ModelResourceLocation = null;
+	
+	public static void addClassMapping(String className, ClassNode cn) {
+		DynamicMappings.addClassMapping(className, cn);
+	}
+	
+	public static ClassNode getClassNode(String className) {
+		return DynamicMappings.getClassNode(className);
+	}
+	
+	public static ClassNode getClassNodeFromMapping(String mapping) {
+		return DynamicMappings.getClassNodeFromMapping(mapping);
+	}
+	
 
-
-	public static ClassNode getMainClass()
+	@Mapping(provides="net/minecraft/client/main/Main")
+	public static boolean getMainClass()
 	{
-		if (cn_Main != null) return cn_Main;
-		cn_Main = DynamicMappings.getClassNode("net/minecraft/client/main/Main");
-		return cn_Main;
+		ClassNode main = getClassNode("net/minecraft/client/main/Main");
+		if (main == null) return false;
+		addClassMapping("net/minecraft/client/main/Main", main);
+		return true;
 	}
 
 
-	public static ClassNode getMinecraftClass()
+	@Mapping(provides={
+			"net/minecraft/client/Minecraft",
+			"net/minecraft/client/main/GameConfiguration"},
+			depends="net/minecraft/client/main/Main")
+	public static boolean getMinecraftClass()
 	{
-		if (cn_Minecraft != null) return cn_Minecraft;
-
-		ClassNode main = getMainClass();
-		if (main == null) return null;
+		ClassNode main = getClassNodeFromMapping("net/minecraft/client/main/Main");
+		if (main == null) return false;
 
 		List<MethodNode> methods = DynamicMappings.getMatchingMethods(main, "main", "([Ljava/lang/String;)V");
-		if (methods.size() != 1) return null;
+		if (methods.size() != 1) return false;
 		MethodNode mainMethod = methods.get(0);
 
 		String minecraftClassName = null;
@@ -67,11 +76,11 @@ public class DynamicClientMappings
 				MethodInsnNode mn = (MethodInsnNode)insn;
 
 				// Check for something wrong
-				if (minecraftClassName == null || !mn.owner.equals(minecraftClassName)) return null;
+				if (minecraftClassName == null || !mn.owner.equals(minecraftClassName)) return false;
 
 				Type t = Type.getMethodType(mn.desc);
 				Type[] args = t.getArgumentTypes();
-				if (args.length != 1) return null;
+				if (args.length != 1) return false;
 
 				// Get this while we're here
 				gameConfigClassName = args[0].getClassName();
@@ -87,26 +96,21 @@ public class DynamicClientMappings
 		}
 
 		if (confirmed) {
-			cn_Minecraft = DynamicMappings.getClassNode(minecraftClassName);
-			cn_GameConfiguration = DynamicMappings.getClassNode(gameConfigClassName);
+			addClassMapping("net/minecraft/client/Minecraft", getClassNode(minecraftClassName));
+			addClassMapping("net/minecraft/client/main/GameConfiguration", getClassNode(gameConfigClassName));
+			return true;
 		}
 
-		return cn_Minecraft;
+		return false;
 	}
 
 
-	public static ClassNode getGameConfigurationClass() {
-		if (cn_GameConfiguration != null) return cn_GameConfiguration;
-		getMinecraftClass();
-		return cn_GameConfiguration;
-	}
 
-
-	public static ClassNode getRenderItemClass() {
-		if (cn_RenderItem != null) return cn_RenderItem;
-
-		ClassNode minecraft = getMinecraftClass();
-		if (minecraft == null) return null;
+	@Mapping(provides="net/minecraft/client/renderer/entity/RenderItem", depends="net/minecraft/client/Minecraft")
+	public static boolean getRenderItemClass()
+	{
+		ClassNode minecraft = getClassNodeFromMapping("net/minecraft/client/Minecraft");
+		if (minecraft == null) return false;
 
 		for (MethodNode method : (List<MethodNode>)minecraft.methods) {
 			Type t = Type.getMethodType(method.desc);
@@ -117,23 +121,23 @@ public class DynamicClientMappings
 			if (className.contains(".")) continue;
 
 			if (DynamicMappings.searchConstantPoolForStrings(className, "textures/misc/enchanted_item_glint.png", "Rendering item")) {
-				cn_RenderItem = DynamicMappings.getClassNode(className);
-				break;
+				addClassMapping("net/minecraft/client/renderer/entity/RenderItem", getClassNode(className));
+				return true;
 			}
 
 			// TODO - Use this to process other getters from Minecraft class
 
 		}
 
-		return cn_RenderItem;
+		return false;
 	}
 
 
-	public static ClassNode getItemModelMesherClass() {
-		if (cn_ItemModelMesher != null) return cn_ItemModelMesher;
-
-		ClassNode renderItem = getRenderItemClass();
-		if (renderItem == null) return null;
+	@Mapping(provides="net/minecraft/client/renderer/ItemModelMesher", depends="net/minecraft/client/renderer/entity/RenderItem")
+	public static boolean getItemModelMesherClass() 
+	{
+		ClassNode renderItem = getClassNodeFromMapping("net/minecraft/client/renderer/entity/RenderItem");
+		if (renderItem == null) return false;
 
 		// Find constructor RenderItem(TextureManager, ModelManager)
 		MethodNode initMethod = null;
@@ -144,12 +148,11 @@ public class DynamicClientMappings
 			count++;
 			initMethod = method;
 		}
-		if (count != 1) return null;
+		if (count != 1) return false;
 
 		Type t = Type.getMethodType(initMethod.desc);
 		Type[] args = t.getArgumentTypes();
 		// TODO: Get TextureManager and ModelManager from args
-
 
 		String className = null;
 
@@ -161,59 +164,76 @@ public class DynamicClientMappings
 				count++;
 			}
 		}
-		if (count != 1 || className == null) return null;
+		if (count != 1 || className == null) return false;
 
 		// We'll assume this is it, might do more detailed confirmations later if necessary
-		cn_ItemModelMesher = DynamicMappings.getClassNode(className);
-
-		return cn_ItemModelMesher;
+		addClassMapping("net/minecraft/client/renderer/ItemModelMesher", getClassNode(className));
+		return true;
 	}
 
 
-	public static ClassNode getGuiMainMenuClass()
+	@Mapping(provides={
+			"net/minecraft/client/gui/GuiMainMenu",  
+			"net/minecraft/client/gui/GuiIngame",
+			"net/minecraft/client/multiplayer/GuiConnecting",
+			"net/minecraft/client/renderer/RenderGlobal"},
+			depends="net/minecraft/client/Minecraft")
+	public static boolean getGuiMainMenuClass()
 	{
-		if (cn_GuiMainMenu != null) return cn_GuiMainMenu;
+		ClassNode minecraft = getClassNodeFromMapping("net/minecraft/client/Minecraft");
+		if (minecraft == null) return false;
 
-		ClassNode minecraft = getMinecraftClass();
-		if (minecraft == null) return null;
+		List<String> postStartupClasses = new ArrayList<String>();
+		List<String> startupClasses = new ArrayList<String>();
 
-		List<String> possibleClasses = null;
-
+		boolean foundMethod = false;
 		for (MethodNode method : (List<MethodNode>)minecraft.methods) {
 			//if (!DynamicMappings.checkMethodParameters(method, Type.OBJECT)) continue;
 			Type t = Type.getMethodType(method.desc);
 			if (t.getReturnType().getSort() != Type.VOID) continue;
 			if (t.getArgumentTypes().length != 0) continue;
 
-			boolean foundFirst = false;
-			boolean foundSecond = false;
+			boolean foundLWJGLVersion = false;
+			boolean foundPostStartup = false;
+			boolean foundStartup = false;
 			for (AbstractInsnNode insn = method.instructions.getFirst(); insn != null; insn = insn.getNext())
 			{
-				if (!foundFirst && !DynamicMappings.isLdcWithString(insn, "LWJGL Version: ")) continue;
-				foundFirst = true;
-				if (!foundSecond && !DynamicMappings.isLdcWithString(insn, "Post startup")) continue;
-				foundSecond = true;
-
-				if (possibleClasses == null) possibleClasses = new ArrayList<String>();
+				if (!foundLWJGLVersion && !DynamicMappings.isLdcWithString(insn, "LWJGL Version: ")) continue;
+				foundLWJGLVersion = true;
+				
+				if (!foundStartup && !DynamicMappings.isLdcWithString(insn, "Startup")) continue;
+				foundStartup = true;
+				
+				foundMethod = true;
+				
+				if (foundStartup && !foundPostStartup) {
+					if (insn.getOpcode() == Opcodes.NEW) {
+						TypeInsnNode tn = (TypeInsnNode)insn;
+						startupClasses.add(tn.desc);
+					}
+				}
+				
+				if (!foundPostStartup && !DynamicMappings.isLdcWithString(insn, "Post startup")) continue;
+				foundPostStartup = true;
 
 				if (insn.getOpcode() == Opcodes.NEW) {
 					TypeInsnNode tn = (TypeInsnNode)insn;
-					possibleClasses.add(tn.desc);
+					postStartupClasses.add(tn.desc);
 				}
 			}
 
-			if (possibleClasses != null) break;
+			if (foundMethod) break;
 		}
 
-		String guiInGame = null;
+		String guiIngame = null;
 		String guiConnecting = null;
 		String guiMainMenu = null;
 		String loadingScreenRenderer = null;
 
-		for (String className : possibleClasses) {
+		for (String className : postStartupClasses) {
 
-			if (guiInGame == null && DynamicMappings.searchConstantPoolForStrings(className, "textures/misc/vignette.png", "bossHealth")) {
-				guiInGame = className;
+			if (guiIngame == null && DynamicMappings.searchConstantPoolForStrings(className, "textures/misc/vignette.png", "bossHealth")) {
+				guiIngame = className;
 				continue;
 			}
 
@@ -231,57 +251,86 @@ public class DynamicClientMappings
 			//if (loadingScreenRenderer == null
 		}
 
-		// TODO - Process the rest
-		//System.out.println(guiMainMenu + " " + guiInGame + " " + guiConnecting);
+		String renderGlobal = null;
+		for (String className : startupClasses) {
+			if (renderGlobal == null && DynamicMappings.searchConstantPoolForStrings(className, "textures/environment/moon_phases.png", "Exception while adding particle", "random.click")) {
+				renderGlobal = className;
+				continue;
+			}
+		}
 
-		if (guiMainMenu != null) cn_GuiMainMenu = DynamicMappings.getClassNode(guiMainMenu);
-
-		return cn_GuiMainMenu;
+		if (guiMainMenu != null)
+			addClassMapping("net/minecraft/client/gui/GuiMainMenu", getClassNode(guiMainMenu));
+		
+		if (guiIngame != null)
+			addClassMapping("net/minecraft/client/gui/GuiIngame", getClassNode(guiIngame));
+		
+		if (guiConnecting != null)
+			addClassMapping("net/minecraft/client/multiplayer/GuiConnecting", getClassNode(guiConnecting));
+		
+		if (renderGlobal != null)
+			addClassMapping("net/minecraft/client/renderer/RenderGlobal", getClassNode(renderGlobal));
+		
+		return true;
 	}
 
 
-	// Gets net.minecraft.client.resources.model.ModelResourceLocation
-	public static ClassNode getModelResourceLocationClass()
+	@Mapping(provides="net/minecraft/client/resources/model/ModelResourceLocation",
+			 depends={
+			"net/minecraft/item/Item",
+			"net/minecraft/client/renderer/ItemModelMesher"})
+	public static boolean getModelResourceLocationClass()
 	{
-		if (cn_ModelResourceLocation != null) return cn_ModelResourceLocation;
-
-		ClassNode item = DynamicMappings.getItemClass();
-		ClassNode itemModelMesher = getItemModelMesherClass();
-		if (!MeddleUtil.notNull(item, itemModelMesher)) return null;
+		ClassNode item = getClassNodeFromMapping("net/minecraft/item/Item");
+		ClassNode itemModelMesher = getClassNodeFromMapping("net/minecraft/client/renderer/ItemModelMesher");
+		if (!MeddleUtil.notNull(item, itemModelMesher)) return false;
 
 		for (MethodNode method : (List<MethodNode>)itemModelMesher.methods) {
 			if (!DynamicMappings.checkMethodParameters(method, Type.OBJECT, Type.INT, Type.OBJECT)) continue;
 			Type t = Type.getMethodType(method.desc);
 			if (!t.getArgumentTypes()[0].getClassName().equals(item.name)) continue;
-			cn_ModelResourceLocation = DynamicMappings.getClassNode(t.getArgumentTypes()[2].getClassName());
+			
+			addClassMapping("net/minecraft/client/resources/model/ModelResourceLocation", 
+					getClassNode(t.getArgumentTypes()[2].getClassName()));
+			return true;
 		}
 
-		return cn_ModelResourceLocation;
+		return false;
 	}
-
-
+	
+	
+	@Mapping(providesMethods={
+			"net/minecraft/item/Item getColorFromItemStack (Lnet/minecraft/item/ItemStack;I)I",
+			},
+			depends={
+			"net/minecraft/item/Item",
+			"net/minecraft/item/ItemStack"
+			})
+	public static boolean getItemClassMethods()
+	{
+		ClassNode item = getClassNodeFromMapping("net/minecraft/item/Item");
+		ClassNode itemStack = getClassNodeFromMapping("net/minecraft/item/ItemStack");
+		
+		// public int getColorFromItemStack(ItemStack, int)
+		List<MethodNode> methods = DynamicMappings.getMethodsWithDescriptor(item.methods, "(L" + itemStack.name + ";I)I");
+		methods = DynamicMappings.removeMethodsWithFlags(methods, Opcodes.ACC_STATIC);
+		if (methods.size() == 1) {
+			MethodNode mn = methods.get(0);
+			DynamicMappings.addMethodMapping(
+					"net/minecraft/item/Item getColorFromItemStack (Lnet/minecraft/item/ItemStack;I)I",
+					item.name + " " + mn.name + " " + mn.desc);
+		}
+		
+		return true;
+	}
+	
 
 
 	public static void generateClassMappings()
 	{
 		if (!MeddleUtil.isClientJar()) return;
-
-		Map<String, ClassNode> tempMappings = new HashMap<String, ClassNode>();
-
-		tempMappings.put("net/minecraft/client/main/Main", getMainClass());
-		tempMappings.put("net/minecraft/client/Minecraft", getMinecraftClass());
-		tempMappings.put("net/minecraft/client/main/GameConfiguration", getGameConfigurationClass());
-		tempMappings.put("net/minecraft/client/renderer/entity/RenderItem", getRenderItemClass());
-		tempMappings.put("net/minecraft/client/renderer/ItemModelMesher", getItemModelMesherClass());
-		tempMappings.put("net/minecraft/client/resources/model/ModelResourceLocation", getModelResourceLocationClass());
-		tempMappings.put("net/minecraft/client/gui/GuiMainMenu", getGuiMainMenuClass());
-
-		for (String key : tempMappings.keySet())
-		{
-			ClassNode node = tempMappings.get(key);
-			if (node == null) Meddle.LOGGER.error("[Meddle] Couldn't resolve dynamic client mapping for " + key);
-			else DynamicMappings.addClassMapping(key, node);
-		}
+		
+		DynamicMappings.registerMappingsClass(DynamicClientMappings.class);		
 	}
 
 
