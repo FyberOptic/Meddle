@@ -145,6 +145,7 @@ public class DynamicMappings
 	// NOTE: Strings are trimmed!  Take into account when matching.
 	public static boolean searchConstantPoolForStrings(String className, String... matchStrings)
 	{
+		if (className == null) return false;
 		className = className.replace(".", "/");
 		//InputStream stream = Launch.classLoader.getResourceAsStream(className + ".class");
 		InputStream stream = DynamicMappings.class.getClassLoader().getResourceAsStream(className + ".class");
@@ -791,7 +792,7 @@ public class DynamicMappings
 
 		for (MethodNode method : (List<MethodNode>)entity.methods)
 		{
-			if (!method.desc.equals("(I)V")) continue;
+			if (!method.desc.startsWith("(I")) continue;
 
 			boolean foundFirst = false;
 			boolean foundSecond = false;
