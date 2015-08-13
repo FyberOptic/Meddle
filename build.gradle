@@ -126,7 +126,7 @@ project(':babybuster') {
 
 project(':dynamicmappings') {
 	
-	version = '004'
+	version = '005-alpha'
 	
 	dependencies {
 		compile project(':meddle')

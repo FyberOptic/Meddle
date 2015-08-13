@@ -1,14 +1,11 @@
 package net.fybertech.dynamicmappings;
 
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.JarURLConnection;
 import java.net.URL;
 import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -175,21 +172,14 @@ public class DynamicRemap
 	
 	public static void main(String[] args)
 	{	
-		/*Class serverClass = null;
-		try {
-			serverClass = Class.forName("net.minecraft.server.MinecraftServer", false, DynamicRemap.class.getClassLoader());
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		
-		System.out.println(serverClass);*/
-		
+				
 		DynamicMappings.generateClassMappings();
 		DynamicClientMappings.generateClassMappings();
 		DynamicMappings.generateMethodMappings();
 		
-				
-		URL url = DynamicRemap.class.getResource("net/minecraft/server/MinecraftServer.class");
+		URL url = DynamicRemap.class.getClassLoader().getResource("net/minecraft/server/MinecraftServer.class");	
+		if (url == null) { System.out.println("Couldn't locate server class!"); return; }
+		
 		JarFile jar = null;
 		if ("jar".equals(url.getProtocol())) {
 			JarURLConnection connection = null;
@@ -201,7 +191,7 @@ public class DynamicRemap
 			}
 		}
 		
-		if (jar== null) return;
+		if (jar == null) return;
 		
 		
 		JarOutputStream outJar = null;

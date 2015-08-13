@@ -25,6 +25,10 @@ public class DynamicClientMappings
 		DynamicMappings.addClassMapping(className, cn);
 	}
 	
+	public static void addMethodMapping(String deobf, String obf) {
+		DynamicMappings.addMethodMapping(deobf, obf);
+	}
+	
 	public static ClassNode getClassNode(String className) {
 		return DynamicMappings.getClassNode(className);
 	}
@@ -46,7 +50,7 @@ public class DynamicClientMappings
 
 	@Mapping(provides={
 			"net/minecraft/client/Minecraft",
-			"net/minecraft/client/main/GameConfiguration"},
+			"net/minecraft/client/main/GameConfiguration"},			
 			depends="net/minecraft/client/main/Main")
 	public static boolean getMinecraftClass()
 	{
@@ -105,6 +109,64 @@ public class DynamicClientMappings
 	}
 
 
+	
+	
+	@Mapping(providesMethods={
+			"net/minecraft/client/Minecraft getMinecraft ()Lnet/minecraft/client/Minecraft;",
+			"net/minecraft/client/Minecraft getRenderItem ()Lnet/minecraft/client/renderer/entity/RenderItem;"
+			},
+			depends={
+			"net/minecraft/client/Minecraft",
+			"net/minecraft/client/renderer/entity/RenderItem"
+			})
+	public static boolean parseMinecraftClass()
+	{
+		ClassNode minecraft = getClassNodeFromMapping("net/minecraft/client/Minecraft");
+		ClassNode renderItem = getClassNodeFromMapping("net/minecraft/client/renderer/entity/RenderItem");
+		if (minecraft == null || renderItem == null) return false;
+		
+		List<MethodNode> methods = DynamicMappings.getMatchingMethods(minecraft,  null, "()L" + minecraft.name + ";");
+		if (methods.size() == 1) {
+			addMethodMapping("net/minecraft/client/Minecraft getMinecraft ()Lnet/minecraft/client/Minecraft;",
+					minecraft.name + " " + methods.get(0).name + " " + methods.get(0).desc);
+		}
+		
+		methods = DynamicMappings.getMatchingMethods(minecraft, null, "()L" + renderItem.name + ";");
+		if (methods.size() == 1) {
+			addMethodMapping("net/minecraft/client/Minecraft getRenderItem ()Lnet/minecraft/client/renderer/entity/RenderItem;",
+					minecraft.name + " " + methods.get(0).name + " " + methods.get(0).desc);
+		}
+		
+		return true;
+	}
+
+
+	
+	
+	@Mapping(providesMethods={
+			"net/minecraft/client/renderer/entity/RenderItem getItemModelMesher ()Lnet/minecraft/client/renderer/ItemModelMesher;"
+			},
+			depends={
+			"net/minecraft/client/renderer/entity/RenderItem",
+			"net/minecraft/client/renderer/ItemModelMesher"
+			})
+	public static boolean parseRenderItemClass()
+	{
+		ClassNode renderItem = getClassNodeFromMapping("net/minecraft/client/renderer/entity/RenderItem");
+		ClassNode modelMesher = getClassNodeFromMapping("net/minecraft/client/renderer/ItemModelMesher");
+		if (renderItem == null || modelMesher == null) return false;
+		
+		List<MethodNode> methods = DynamicMappings.getMatchingMethods(renderItem,  null, "()L" + modelMesher.name + ";");
+		if (methods.size() == 1) {
+			addMethodMapping("net/minecraft/client/renderer/entity/RenderItem getItemModelMesher ()Lnet/minecraft/client/renderer/ItemModelMesher;",
+					renderItem.name + " " + methods.get(0).name + " " + methods.get(0).desc);
+		}
+		
+		
+		return true;
+	}
+	
+	
 
 	@Mapping(provides="net/minecraft/client/renderer/entity/RenderItem", depends="net/minecraft/client/Minecraft")
 	public static boolean getRenderItemClass()
@@ -325,6 +387,31 @@ public class DynamicClientMappings
 	}
 	
 
+	@Mapping(providesMethods={
+			"net/minecraft/client/renderer/ItemModelMesher register (Lnet/minecraft/item/Item;ILnet/minecraft/client/resources/model/ModelResourceLocation;)V"
+			},
+			depends={
+			"net/minecraft/item/Item",
+			"net/minecraft/client/renderer/ItemModelMesher",
+			"net/minecraft/client/resources/model/ModelResourceLocation"
+			})
+	public static boolean parseItemModelMesherClass()
+	{
+		ClassNode item = getClassNodeFromMapping("net/minecraft/item/Item");
+		ClassNode modelMesher = getClassNodeFromMapping("net/minecraft/client/renderer/ItemModelMesher");
+		ClassNode modelResLoc = getClassNodeFromMapping("net/minecraft/client/resources/model/ModelResourceLocation");
+		if (item == null || modelMesher == null || modelResLoc == null) return false;
+		
+		List<MethodNode> methods = DynamicMappings.getMatchingMethods(modelMesher, null, "(L" + item.name + ";IL" + modelResLoc.name + ";)V");
+		if (methods.size() == 1) {			
+			addMethodMapping("net/minecraft/client/renderer/ItemModelMesher register (Lnet/minecraft/item/Item;ILnet/minecraft/client/resources/model/ModelResourceLocation;)V",
+					modelMesher.name + " " + methods.get(0).name + " " + methods.get(0).desc);
+		}
+		
+		return true;		
+	}
+	
+	
 
 	public static void generateClassMappings()
 	{

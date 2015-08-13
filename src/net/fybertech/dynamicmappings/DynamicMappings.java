@@ -870,7 +870,12 @@ public class DynamicMappings
 
 
 	@Mapping(provides={
-			"net/minecraft/item/ItemSword"},
+			"net/minecraft/item/ItemSword",
+			"net/minecraft/item/ItemSoup",
+			"net/minecraft/item/ItemBanner"},
+			providesMethods={
+			"net/minecraft/item/Item registerItems ()V"			
+			},
 			depends="net/minecraft/item/Item")
 	public static boolean discoverItems()
 	{
@@ -884,6 +889,8 @@ public class DynamicMappings
 		}
 		if (methods.size() != 1) return false;		
 		MethodNode registerItemsMethod = methods.get(0);
+		
+		addMethodMapping("net/minecraft/item/Item registerItems ()V", itemClass.name + " " + registerItemsMethod.name + " " + registerItemsMethod.desc);
 		
 		Map<String, String> itemClassMap = new HashMap<String, String>();
 		
@@ -901,12 +908,109 @@ public class DynamicMappings
 		
 		className = itemClassMap.get("iron_sword");
 		if (className != null && searchConstantPoolForStrings(className, "Weapon modifier")) {
-			addClassMapping("net/minecraft/item/ItemSword",  getClassNode(className));
+			addClassMapping("net/minecraft/item/ItemSword", className);
+		}
+		
+		className = itemClassMap.get("mushroom_stew");
+		if (className != null && className.equals(itemClassMap.get("rabbit_stew"))) {
+			addClassMapping("net/minecraft/item/ItemSoup", className);
+		}
+		
+		className = itemClassMap.get("banner");
+		if (className != null && searchConstantPoolForStrings(className, "item.banner.")) {
+			addClassMapping("net/minecraft/item/ItemBanner", className);
 		}
 		
 		
 		return true;
 	}
+	
+	
+	@Mapping(providesMethods={
+			"net/minecraft/item/Item setMaxDamage (I)Lnet/minecraft/item/Item;",
+			"net/minecraft/item/Item getMaxDamage ()I"
+			},
+			providesFields={
+			"net/minecraft/item/Item maxDamage I"
+			},
+			depends={
+			"net/minecraft/item/Item",
+			"net/minecraft/item/ItemBanner"
+			})
+	public static boolean getMaxDamageStuff()
+	{
+		ClassNode item = getClassNodeFromMapping("net/minecraft/item/Item");
+		ClassNode banner = getClassNodeFromMapping("net/minecraft/item/ItemBanner");
+		if (item == null || banner == null) return false;
+
+		List<MethodNode> methods = getMatchingMethods(banner, "<init>", "()V");
+		if (methods.size() != 1) return false;
+		
+		int count = 0;
+		String setMaxDamageName = null;
+		String setMaxDamageDesc = "(I)L" + item.name + ";";
+		
+		// Locate Item.setMaxDamage used in ItemBanner's constructor
+		for (AbstractInsnNode insn = methods.get(0).instructions.getFirst(); insn != null; insn = insn.getNext()) {
+			if (insn.getOpcode() != Opcodes.INVOKEVIRTUAL) continue;
+			MethodInsnNode mn = (MethodInsnNode)insn;
+			if (!mn.desc.equals(setMaxDamageDesc)) continue;
+			setMaxDamageName = mn.name;
+			count++;			
+		}		
+		
+		if (count != 1) return false;		
+		addMethodMapping("net/minecraft/item/Item setMaxDamage (I)Lnet/minecraft/item/Item;", 
+				item.name + " " + setMaxDamageName + " " + setMaxDamageDesc);
+		
+		
+		String maxDamageField = null;
+		
+		methods = getMatchingMethods(item, setMaxDamageName, setMaxDamageDesc);
+		if (methods.size() != 1) return false;
+		
+		// Get Item.maxDamage field from Item.setMaxDamage(I)
+		for (AbstractInsnNode insn = methods.get(0).instructions.getFirst(); insn != null; insn = insn.getNext()) {
+			if (insn.getOpcode() < 0) continue;					
+			if (insn.getOpcode() != Opcodes.ALOAD) return false;				
+			insn = insn.getNext();
+			if (insn.getOpcode() != Opcodes.ILOAD) return false;
+			insn = insn.getNext();
+			if (insn.getOpcode() != Opcodes.PUTFIELD) return false;
+			
+			FieldInsnNode fn = (FieldInsnNode)insn;			
+			if (!fn.desc.equals("I")) return false;			
+			maxDamageField = fn.name;
+			break;
+		}		
+		if (maxDamageField == null) return false;
+		
+		addFieldMapping("net/minecraft/item/Item maxDamage I", item.name + " " + maxDamageField + " I");
+		
+		
+		// Find Item.getMaxDamage()
+		methods = getMatchingMethods(item, null, "()I");
+		for (MethodNode method : methods) {
+			for (AbstractInsnNode insn = method.instructions.getFirst(); insn != null; insn = insn.getNext()) {
+				if (insn.getOpcode() < 0) continue;					
+				if (insn.getOpcode() != Opcodes.ALOAD) return false;				
+				insn = insn.getNext();
+				if (insn.getOpcode() != Opcodes.GETFIELD) return false;
+				
+				FieldInsnNode fn = (FieldInsnNode)insn;
+				if (fn.name.equals(maxDamageField)) {
+					addMethodMapping("net/minecraft/item/Item getMaxDamage ()I", item.name + " " + method.name + " " + method.desc);
+					return true;
+				}
+				
+				break;
+			}
+		}		
+		
+		
+		return false;
+	}
+	
 	
 	
 	@Mapping(provides={},
@@ -928,6 +1032,74 @@ public class DynamicMappings
 	}
 	
 	
+	
+	@Mapping(providesFields={
+			"net/minecraft/creativetab/CreativeTabs tabBlock Lnet/minecraft/creativetab/CreativeTabs;",
+			"net/minecraft/creativetab/CreativeTabs tabDecorations Lnet/minecraft/creativetab/CreativeTabs;",
+			"net/minecraft/creativetab/CreativeTabs tabRedstone Lnet/minecraft/creativetab/CreativeTabs;",
+			"net/minecraft/creativetab/CreativeTabs tabTransport Lnet/minecraft/creativetab/CreativeTabs;",
+			"net/minecraft/creativetab/CreativeTabs tabMisc Lnet/minecraft/creativetab/CreativeTabs;",
+			"net/minecraft/creativetab/CreativeTabs tabAllSearch Lnet/minecraft/creativetab/CreativeTabs;",
+			"net/minecraft/creativetab/CreativeTabs tabFood Lnet/minecraft/creativetab/CreativeTabs;",
+			"net/minecraft/creativetab/CreativeTabs tabTools Lnet/minecraft/creativetab/CreativeTabs;",
+			"net/minecraft/creativetab/CreativeTabs tabCombat Lnet/minecraft/creativetab/CreativeTabs;",
+			"net/minecraft/creativetab/CreativeTabs tabBrewing Lnet/minecraft/creativetab/CreativeTabs;",
+			"net/minecraft/creativetab/CreativeTabs tabMaterials Lnet/minecraft/creativetab/CreativeTabs;",
+			"net/minecraft/creativetab/CreativeTabs tabInventory Lnet/minecraft/creativetab/CreativeTabs;"
+			},
+			depends="net/minecraft/creativetab/CreativeTabs")
+	public static boolean getCreativeTabs()
+	{
+		ClassNode creativeTabs = getClassNodeFromMapping("net/minecraft/creativetab/CreativeTabs");
+		if (creativeTabs == null) return false;
+		
+		List<MethodNode> methods = getMatchingMethods(creativeTabs, "<clinit>", "()V");
+		if (methods.size() != 1) return false;
+		
+		Map<String, String> tabMap = new HashMap<String, String>();
+		
+		String name = null;
+		for (AbstractInsnNode insn = methods.get(0).instructions.getFirst(); insn != null; insn = insn.getNext()) 
+		{
+			if (name == null) { name = getLdcString(insn); continue; }
+			if (insn.getOpcode() != Opcodes.PUTSTATIC) continue;
+			FieldInsnNode fn = (FieldInsnNode)insn;
+			if (fn.desc.equals("L" + creativeTabs.name + ";")) {
+				tabMap.put(name,  fn.name);
+				name = null;
+			}
+		}
+		
+		Map<String, String> tabToFieldMap = new HashMap<String, String>() {{
+			put("buildingBlocks", "tabBlock");
+			put("decorations", "tabDecorations");
+			put("redstone", "tabRedstone");
+			put("transportation", "tabTransport");
+			put("misc", "tabMisc");
+			put("search", "tabAllSearch");
+			put("food", "tabFood");
+			put("tools", "tabTools");
+			put("combat", "tabCombat");
+			put("brewing", "tabBrewing");
+			put("materials", "tabMaterials");
+			put("inventory", "tabInventory");
+		}};	
+		
+		for (String key : tabMap.keySet()) {
+			if (tabToFieldMap.containsKey(key)) {
+				String mappedField = tabToFieldMap.get(key);
+				String unmappedField = tabMap.get(key);
+				addFieldMapping("net/minecraft/creativetab/CreativeTabs " + mappedField + " Lnet/minecraft/creativetab/CreativeTabs;",
+						creativeTabs.name + " " + unmappedField + " L" + creativeTabs.name + ";"); 
+			}
+		}
+		
+		
+		return true;
+	}
+	
+	
+	
 	@Mapping(provides={			
 			"net/minecraft/util/EnumFacing",
 			"net/minecraft/util/ItemUseResult",  		// NEW
@@ -940,7 +1112,9 @@ public class DynamicMappings
 			"net/minecraft/util/ResourceLocation"},
 			providesMethods={
 			"net/minecraft/item/Item getMaxStackSize ()I",
-			"net/minecraft/item/Item setMaxStackSize (I)Lnet/minecraft/item/Item;"
+			"net/minecraft/item/Item setMaxStackSize (I)Lnet/minecraft/item/Item;",
+			"net/minecraft/item/Item setCreativeTab (Lnet/minecraft/creativetab/CreativeTabs;)Lnet/minecraft/item/Item;",
+			"net/minecraft/item/Item registerItem (ILjava/lang/String;Lnet/minecraft/item/Item;)V"
 			},
 			providesFields={
 			"net/minecraft/item/Item maxStackSize I"
@@ -1048,6 +1222,9 @@ public class DynamicMappings
 		}
 		
 		
+		
+		ClassNode creativeTab = null;
+		
 		// Get net.minecraft.creativetab.CreativeTabs
 		for (FieldNode field : item.fields) {
 			Type t = Type.getType(field.desc);
@@ -1057,8 +1234,21 @@ public class DynamicMappings
 			if (reverseClassMappings.containsKey(className)) continue;
 			if (searchConstantPoolForStrings(className, "buildingBlocks", "decorations", "redstone")) {
 				addClassMapping("net/minecraft/creativetab/CreativeTabs", className);
+				creativeTab = getClassNode(className);
 			}
 		}
+		
+		
+		// Get Item.setCreativeTab()
+		if (creativeTab != null)
+		{
+			String setCreativeTabDesc = "(L" + creativeTab.name + ";)L" + item.name + ";";
+			List<MethodNode> methods = getMatchingMethods(item, null, setCreativeTabDesc);
+			if (methods.size() == 1) {
+				addMethodMapping("net/minecraft/item/Item setCreativeTab (Lnet/minecraft/creativetab/CreativeTabs;)Lnet/minecraft/item/Item;",
+						item.name + " " + methods.get(0).name + " " + methods.get(0).desc); 
+			}
+		}	
 		
 		
 		String maxStackSizeField = null;
@@ -1126,12 +1316,21 @@ public class DynamicMappings
 				}
 				if (foundSetter) break;
 			}		
+		}		
+		
+		
+		// private static void registerItem(int id, String textualID, Item itemIn)
+		List<MethodNode> methods = getMatchingMethods(item, null, "(ILjava/lang/String;L" + item.name + ";)V");
+		methods = removeMethodsWithoutFlags(methods, Opcodes.ACC_STATIC);
+		if (methods.size() == 1) {
+			addMethodMapping("net/minecraft/item/Item registerItem (ILjava/lang/String;Lnet/minecraft/item/Item;)V",
+					item.name + " " + methods.get(0).name + " " + methods.get(0).desc);
 		}
 		
-
 		
 		return true;
 	}
+	
 	
 	
 	
