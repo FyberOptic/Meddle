@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.net.JarURLConnection;
 import java.net.URL;
 import java.util.Enumeration;
+import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -14,6 +15,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.commons.Remapper;
 import org.objectweb.asm.commons.RemappingClassAdapter;
@@ -21,8 +23,6 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodNode;
 
-import net.fybertech.dynamicmappings.DynamicClientMappings;
-import net.fybertech.dynamicmappings.DynamicMappings;
 import net.fybertech.dynamicmappings.InheritanceMap;
 import net.fybertech.dynamicmappings.InheritanceMap.FieldHolder;
 import net.fybertech.dynamicmappings.InheritanceMap.MethodHolder;
@@ -31,35 +31,86 @@ import net.fybertech.dynamicmappings.InheritanceMap.MethodHolder;
 public class DynamicRemap 
 {
 	
+	Map<String, String> classMappings;
+	Map<String, String> fieldMappings;
+	Map<String, String> methodMappings;	
 	
-	private static class MyRemapper extends Remapper
+	public String unpackagedPrefix = "net/minecraft/class_";
+	public String unpackagedInnerPrefix = "innerclass_";
+	
+	public InheritanceMap inheritanceMapper = new InheritanceMap();
+	
+	
+	
+	public DynamicRemap(Map<String, String> cm, Map<String, String> fm, Map<String, String> mm)
 	{
+		classMappings = cm;
+		fieldMappings = fm;
+		methodMappings = mm;	
+	}
+	
+	
+	protected ClassNode getClassNode(String className)
+	{
+		return DynamicMappings.getClassNode(className);
+	}
+	
+	
+	
+	private boolean isObfInner(String s)
+	{
+		if (s.length() > 1) return false;
+		
+		try {
+			Integer.parseInt(s);
+			return false;
+		}
+		catch (NumberFormatException e) 
+		{
+			return true;
+		}
+	}
+		
+	
+	private class MyRemapper extends Remapper
+	{
+		
+		
 		@Override
 		public String map(String typeName) 
 		{
-			String startName = typeName;
-			if (DynamicMappings.reverseClassMappings.containsKey(typeName)) typeName = DynamicMappings.reverseClassMappings.get(typeName);
+			boolean originallyUnpackaged = !typeName.contains("/");
+			
+			if (classMappings.containsKey(typeName)) typeName = classMappings.get(typeName);			
 			
 			// Remap the parent class in the case of an inner class
 			String[] split = typeName.split("\\$");
-			if (DynamicMappings.reverseClassMappings.containsKey(split[0])) split[0] = DynamicMappings.reverseClassMappings.get(split[0]);
+			if (classMappings.containsKey(split[0])) split[0] = classMappings.get(split[0]);			
 			typeName = split[0];
-			for (int n = 1; n < split.length; n++) typeName += "$" + split[n];
-				
-			if (!typeName.contains("/")) typeName = "net/minecraft/class_" + typeName;
+			//if (typeName.startsWith("aci")) System.out.println(typeName);
+			
+			for (int n = 1; n < split.length; n++) {
+				String inner = split[n];
+				if (originallyUnpackaged && isObfInner(inner) && unpackagedInnerPrefix != null) inner = unpackagedInnerPrefix + inner;
+				typeName += "$" + inner;				
+			}
+			//if (typeName.startsWith("net/minecraft/item")) System.out.println(typeName);
+			
+			
+			if (!typeName.contains("/") && unpackagedPrefix != null) typeName = unpackagedPrefix + typeName;
 			return super.map(typeName);
 		}
 		
 		
 		@Override
 		public String mapFieldName(String owner, String name, String desc)
-		{
-			ClassNode cn = DynamicMappings.getClassNode(owner);
+		{			
+			ClassNode cn = getClassNode(owner);			
 			if (cn == null) return super.mapFieldName(owner, name, desc);
 			
 			InheritanceMap map = null;
 			try {
-				map = InheritanceMap.buildMap(cn);
+				map = inheritanceMapper.buildMap(cn);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}			
@@ -69,8 +120,8 @@ public class DynamicRemap
 			
 			for (FieldHolder holder : fields) {			
 				String key = holder.cn.name + " " + holder.fn.name + " " + holder.fn.desc;
-				if (DynamicMappings.reverseFieldMappings.containsKey(key)) {
-					String mapping = DynamicMappings.reverseFieldMappings.get(key);
+				if (fieldMappings.containsKey(key)) {
+					String mapping = fieldMappings.get(key);
 					String[] split = mapping.split(" ");
 					return super.mapFieldName(owner, split[1], desc);
 				}
@@ -83,25 +134,24 @@ public class DynamicRemap
 		@Override
 		public String mapMethodName(String owner, String name, String desc) 
 		{		
-			if (owner.startsWith("[") || name.startsWith("<")) return super.mapMethodName(owner, name, desc);
+			if (owner.startsWith("[") || name.startsWith("<")) return super.mapMethodName(owner, name, desc);			
 			
-			ClassNode cn = DynamicMappings.getClassNode(owner);
+			ClassNode cn = getClassNode(owner);			
 			if (cn == null) return super.mapMethodName(owner, name, desc);
 				
 			InheritanceMap map = null;
 			try {
-				map = InheritanceMap.buildMap(cn);
+				map = inheritanceMapper.buildMap(cn);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}			
-			Set<MethodHolder> methods = map.methods.get(name + " " + desc);
-			
+			Set<MethodHolder> methods = map.methods.get(name + " " + desc);			
 			if (methods == null) return super.mapMethodName(owner, name, desc);			
 			
 			for (MethodHolder holder : methods) {			
-				String key = holder.cn.name + " " + holder.mn.name + " " + holder.mn.desc;
-				if (DynamicMappings.reverseMethodMappings.containsKey(key)) {
-					String mapping = DynamicMappings.reverseMethodMappings.get(key);
+				String key = holder.cn.name + " " + holder.mn.name + " " + holder.mn.desc; 
+				if (methodMappings.containsKey(key)) {
+					String mapping = methodMappings.get(key);
 					//System.out.println(mapping);
 					String[] split = mapping.split(" ");
 					return super.mapMethodName(owner, split[1], desc);
@@ -113,9 +163,19 @@ public class DynamicRemap
 	}
 	
 	
-	public static ClassNode remapClass(String className)
+	public ClassNode remapClass(String className)
 	{
-		InputStream stream = DynamicRemap.class.getClassLoader().getResourceAsStream(className + ".class");
+		if (className == null) return null;
+		
+		InputStream stream = getClass().getClassLoader().getResourceAsStream(className + ".class");
+		return remapClass(stream);
+	}
+	
+	
+	public ClassNode remapClass(InputStream stream)
+	{
+		if (stream == null) return null;
+				
 		ClassReader reader = null;
 		try {
 			reader = new ClassReader(stream);
@@ -123,9 +183,52 @@ public class DynamicRemap
 			e.printStackTrace();
 		}
 		
-		ClassNode cn = new ClassNode();
-		reader.accept(new RemappingClassAdapter(cn, new MyRemapper()), ClassReader.EXPAND_FRAMES);
+		return remapClass(reader);
+	}
+	
+	
+	public byte[] remapClass(byte[] basicClass) 
+	{
+		if (basicClass == null) return null;
 		
+		ClassReader reader = new ClassReader(basicClass);
+		
+		ClassNode cn = remapClass(reader);
+		if (cn == null) return null;
+		
+		ClassWriter cw = new ClassWriter(0);
+		cn.accept(cw);
+		return cw.toByteArray();
+	}
+	
+	
+	private class CustomRemappingClassAdapter extends RemappingClassAdapter
+	{
+		public CustomRemappingClassAdapter(ClassVisitor cv, Remapper remapper) {
+			super(cv, remapper);
+		}
+		
+		@Override
+		public void visitInnerClass(String name, String outerName, String innerName, int access) 
+		{
+			
+			if (!name.contains("/") && innerName != null && unpackagedInnerPrefix != null && isObfInner(innerName))
+			{
+				innerName = unpackagedInnerPrefix + innerName;				
+			}
+			
+			super.visitInnerClass(name, outerName, innerName, access);
+		}
+		
+	}
+	
+	
+	public ClassNode remapClass(ClassReader reader)
+	{
+		ClassNode cn = new ClassNode();
+		reader.accept(new CustomRemappingClassAdapter(cn, new MyRemapper()), ClassReader.EXPAND_FRAMES);
+		
+		// Fix obfuscation of local variable names
 		for (MethodNode method : cn.methods)
 		{
 			int paramCount = 0;
@@ -138,13 +241,12 @@ public class DynamicRemap
 					if (lvn.start == method.instructions.getFirst()) lvn.name = "param" + paramCount++;
 					else lvn.name = "var" + varCount++;
 				}
-		}
-		
+		}		
 		
 		return cn;
 	}
+		
 	
-
 	public static byte[] getFileFromZip(ZipEntry entry, ZipFile zipFile)
 	{
 		byte[] buffer = null;		
@@ -170,6 +272,8 @@ public class DynamicRemap
 	}
 	
 	
+	
+	
 	public static void main(String[] args)
 	{	
 				
@@ -177,8 +281,15 @@ public class DynamicRemap
 		DynamicClientMappings.generateClassMappings();
 		DynamicMappings.generateMethodMappings();
 		
+		DynamicRemap remapper = new DynamicRemap(
+				DynamicMappings.reverseClassMappings, 
+				DynamicMappings.reverseFieldMappings, 
+				DynamicMappings.reverseMethodMappings);
+		
+		
 		URL url = DynamicRemap.class.getClassLoader().getResource("net/minecraft/server/MinecraftServer.class");	
 		if (url == null) { System.out.println("Couldn't locate server class!"); return; }
+		
 		
 		JarFile jar = null;
 		if ("jar".equals(url.getProtocol())) {
@@ -191,7 +302,7 @@ public class DynamicRemap
 			}
 		}
 		
-		if (jar == null) return;
+		if (jar == null) { System.out.println("Couldn't locate Minecraft jar!"); return; }
 		
 		
 		JarOutputStream outJar = null;
@@ -207,9 +318,13 @@ public class DynamicRemap
 			String name = entry.getName();
 			byte[] bytes = null;
 			
+			if (name.startsWith("META-INF/")) {
+				if (name.endsWith(".RSA") || name.endsWith(".SF")) continue;
+			}
+			
 			if (name.endsWith(".class")) {
 				name = name.substring(0, name.length() - 6);			
-				ClassNode mapped = remapClass(name);
+				ClassNode mapped = remapper.remapClass(name);
 				
 				ClassWriter writer = new ClassWriter(0);
 				mapped.accept(writer);
@@ -237,5 +352,8 @@ public class DynamicRemap
 		
 		
 	}
+
+
+	
 	
 }

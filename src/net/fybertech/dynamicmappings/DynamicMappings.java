@@ -1114,7 +1114,9 @@ public class DynamicMappings
 			"net/minecraft/item/Item getMaxStackSize ()I",
 			"net/minecraft/item/Item setMaxStackSize (I)Lnet/minecraft/item/Item;",
 			"net/minecraft/item/Item setCreativeTab (Lnet/minecraft/creativetab/CreativeTabs;)Lnet/minecraft/item/Item;",
-			"net/minecraft/item/Item registerItem (ILjava/lang/String;Lnet/minecraft/item/Item;)V"
+			"net/minecraft/item/Item registerItem (ILjava/lang/String;Lnet/minecraft/item/Item;)V",
+			"net/minecraft/item/Item onItemRightClick (Lnet/minecraft/item/ItemStack;Lnet/minecraft/world/World;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/util/MainOrOffHand;)Lnet/minecraft/util/ObjectActionHolder;",
+			"net/minecraft/item/Item onItemUse (Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;Lnet/minecraft/util/BlockPos;Lnet/minecraft/util/MainOrOffHand;Lnet/minecraft/util/EnumFacing;FFF)Lnet/minecraft/util/ItemUseResult;"
 			},
 			providesFields={
 			"net/minecraft/item/Item maxStackSize I"
@@ -1136,6 +1138,9 @@ public class DynamicMappings
 		ClassNode entityLivingBase = getClassNodeFromMapping("net/minecraft/entity/EntityLivingBase");		
 		
 		String mainOrOffHand = null;
+		String enumFacing = null;
+		String itemUseResult = null;
+		
 		ClassNode objectActionHolder = null;
 		String itemState = null;
 		String resourceLocation = null;
@@ -1149,9 +1154,11 @@ public class DynamicMappings
 			Type t = Type.getMethodType(method.desc);
 			Type[] args = t.getArgumentTypes();
 			
-			addClassMapping("net/minecraft/util/ItemUseResult", t.getReturnType().getClassName());
+			addClassMapping("net/minecraft/util/ItemUseResult", itemUseResult = t.getReturnType().getClassName());
 			addClassMapping("net/minecraft/util/MainOrOffHand", mainOrOffHand = args[4].getClassName()); 
-			addClassMapping("net/minecraft/util/EnumFacing", args[5].getClassName());
+			addClassMapping("net/minecraft/util/EnumFacing", enumFacing = args[5].getClassName());
+			addMethodMapping("net/minecraft/item/Item onItemUse (Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;Lnet/minecraft/util/BlockPos;Lnet/minecraft/util/MainOrOffHand;Lnet/minecraft/util/EnumFacing;FFF)Lnet/minecraft/util/ItemUseResult;",
+					item.name + " " + method.name + " " + method.desc);
 		}
 
 		// public ObjectActionHolderThing onItemRightClick(ItemStack, World, EntityPlayer, MainOrOffHand)
@@ -1162,6 +1169,8 @@ public class DynamicMappings
 			
 			objectActionHolder = getClassNode(t.getClassName());
 			addClassMapping("net/minecraft/util/ObjectActionHolder", objectActionHolder);
+			addMethodMapping("net/minecraft/item/Item onItemRightClick (Lnet/minecraft/item/ItemStack;Lnet/minecraft/world/World;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/util/MainOrOffHand;)Lnet/minecraft/util/ObjectActionHolder;",
+					item.name + " " + method.name + " " + method.desc);
 		}
 		
 		// private static void registerItem(int, ResourceLocation, Item)
@@ -1328,9 +1337,36 @@ public class DynamicMappings
 		}
 		
 		
+		
 		return true;
 	}
 	
+	
+	@Mapping(providesFields={
+			"net/minecraft/world/World isRemote Z"
+			},
+			depends={
+			"net/minecraft/world/World"
+			})
+	public static boolean processWorldClass()
+	{
+		ClassNode world = getClassNodeFromMapping("net/minecraft/world/World");
+		if (world == null) return false;
+		
+		int count = 0;
+		
+		String isRemote = null;
+		for (FieldNode fn : world.fields) {
+			if ((fn.access & Opcodes.ACC_FINAL) == 0 || !fn.desc.equals("Z")) continue;
+			isRemote = fn.name;
+			count++;
+		}
+		if (count == 1) addFieldMapping("net/minecraft/world/World isRemote Z", world.name + " " + isRemote + " Z");
+		else isRemote = null;
+		
+		
+		return true;
+	}
 	
 	
 	

@@ -25,6 +25,10 @@ public class DynamicClientMappings
 		DynamicMappings.addClassMapping(className, cn);
 	}
 	
+	public static void addClassMapping(String className, String cn) {
+		DynamicMappings.addClassMapping(className, cn);
+	}
+	
 	public static void addMethodMapping(String deobf, String obf) {
 		DynamicMappings.addMethodMapping(deobf, obf);
 	}
@@ -111,9 +115,14 @@ public class DynamicClientMappings
 
 	
 	
-	@Mapping(providesMethods={
+	@Mapping(provides={
+			"net/minecraft/world/WorldSettings"
+			},
+			providesMethods={
 			"net/minecraft/client/Minecraft getMinecraft ()Lnet/minecraft/client/Minecraft;",
-			"net/minecraft/client/Minecraft getRenderItem ()Lnet/minecraft/client/renderer/entity/RenderItem;"
+			"net/minecraft/client/Minecraft getRenderItem ()Lnet/minecraft/client/renderer/entity/RenderItem;",
+			"net/minecraft/client/Minecraft refreshResources ()V",
+			"net/minecraft/client/Minecraft launchIntegratedServer (Ljava/lang/String;Ljava/lang/String;Lnet/minecraft/world/WorldSettings;)V"
 			},
 			depends={
 			"net/minecraft/client/Minecraft",
@@ -135,6 +144,36 @@ public class DynamicClientMappings
 		if (methods.size() == 1) {
 			addMethodMapping("net/minecraft/client/Minecraft getRenderItem ()Lnet/minecraft/client/renderer/entity/RenderItem;",
 					minecraft.name + " " + methods.get(0).name + " " + methods.get(0).desc);
+		}
+		
+		boolean found = false;
+		
+		// public void refreshResources()
+		methods = DynamicMappings.getMatchingMethods(minecraft, null, "()V");		
+		for (MethodNode method : methods) {
+			for (AbstractInsnNode insn = method.instructions.getFirst(); insn != null; insn = insn.getNext()) {
+				if (!DynamicMappings.isLdcWithString(insn, "Caught error stitching, removing all assigned resourcepacks")) continue;				
+				addMethodMapping("net/minecraft/client/Minecraft refreshResources ()V", minecraft.name + " " + method.name + " ()V");
+				found = true;				
+			}
+			if (found) break;
+		}
+		
+		methods.clear();
+		for (MethodNode method : minecraft.methods) {
+			if (!DynamicMappings.checkMethodParameters(method,  Type.OBJECT, Type.OBJECT, Type.OBJECT)) continue;
+			if (Type.getMethodType(method.desc).getReturnType().getSort() != Type.VOID) continue;
+			if (!method.desc.startsWith("(Ljava/lang/String;Ljava/lang/String;L")) continue;
+			methods.add(method);
+		}
+		if (methods.size() == 1) {
+			MethodNode method = methods.get(0);
+			Type t = Type.getMethodType(method.desc);
+			
+			String worldSettings = t.getArgumentTypes()[2].getClassName();
+			addClassMapping("net/minecraft/world/WorldSettings", worldSettings);
+			addMethodMapping("net/minecraft/client/Minecraft launchIntegratedServer (Ljava/lang/String;Ljava/lang/String;Lnet/minecraft/world/WorldSettings;)V",
+					minecraft.name + " " + method.name + " " + method.desc);
 		}
 		
 		return true;
@@ -409,6 +448,42 @@ public class DynamicClientMappings
 		}
 		
 		return true;		
+	}
+	
+	
+	@Mapping(provides={
+			"net/minecraft/client/gui/Gui",
+			"net/minecraft/client/gui/GuiScreen",
+			"net/minecraft/client/gui/GuiYesNoCallback"
+			},
+			depends={
+			"net/minecraft/client/gui/GuiMainMenu"
+			})	
+	public static boolean findGuiStuff()
+	{
+		ClassNode guiMainMenu = getClassNodeFromMapping("net/minecraft/client/gui/GuiMainMenu");
+		if (guiMainMenu == null || guiMainMenu.superName == null) return false;		
+				
+		ClassNode guiScreen = null;
+		String guiScreenName = null;
+		
+		if (DynamicMappings.searchConstantPoolForStrings(guiMainMenu.superName, "Invalid Item!", "java.awt.Desktop")) {
+			guiScreenName = guiMainMenu.superName;
+			guiScreen = getClassNode(guiScreenName);
+			addClassMapping("net/minecraft/client/gui/GuiScreen", guiScreenName);
+		}		
+		
+		if (guiScreen == null || guiScreen.superName == null) return false;
+		
+		if (guiScreen.interfaces.size() == 1) {
+			addClassMapping("net/minecraft/client/gui/GuiYesNoCallback", guiScreen.interfaces.get(0));
+		}
+		
+		if (DynamicMappings.searchConstantPoolForStrings(guiScreen.superName, "textures/gui/options_background.png", "textures/gui/icons.png")) {			
+			addClassMapping("net/minecraft/client/gui/Gui", guiScreen.superName);
+		}
+		
+		return true;
 	}
 	
 	

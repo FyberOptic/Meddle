@@ -53,7 +53,15 @@ public class InheritanceMap
 	public Map<String, HashSet<FieldHolder>> fields = new HashMap<String,HashSet<FieldHolder>>();		
 	public Map<String, HashSet<MethodHolder>> methods = new HashMap<String,HashSet<MethodHolder>>();
 	
-	public InheritanceMap(ClassNode jc)
+	
+	public InheritanceMap()
+	{
+	}
+	
+	
+	
+	
+	private InheritanceMap(ClassNode jc)
 	{
 		this.className = jc.name;
 		
@@ -88,7 +96,7 @@ public class InheritanceMap
 		}				
 	}
 	
-	public void mergeMap(InheritanceMap cm)
+	private void mergeMap(InheritanceMap cm)
 	{
 		for (String fielddesc : cm.fields.keySet())
 		{			
@@ -118,15 +126,15 @@ public class InheritanceMap
 	}
 	
 	
-	public static InheritanceMap buildMap(String paramClassname) throws IOException
+	public InheritanceMap buildMap(String paramClassname) throws IOException
 	{
-		ClassNode jc = InheritanceMap.locateClass(paramClassname);
+		ClassNode jc = locateClass(paramClassname);
 		if (jc == null) return null;
 		return buildMap(jc);
 	}
 	
 	
-	public static InheritanceMap buildMap(ClassNode paramClass) throws IOException
+	public InheritanceMap buildMap(ClassNode paramClass) throws IOException
 	{
 		InheritanceMap classmap = InheritanceMap.mapCache.get(paramClass.name); 
 		if (classmap != null) return classmap;				
@@ -137,7 +145,7 @@ public class InheritanceMap
 		
 		for (String interfaceclassname : paramClass.interfaces)
 		{			
-			ClassNode interfaceclass = InheritanceMap.locateClass(interfaceclassname);
+			ClassNode interfaceclass = locateClass(interfaceclassname);
 			if (interfaceclass == null) { System.out.println("ERROR: Unable to locate " + interfaceclassname); continue; }
 			classmap.mergeMap(buildMap(interfaceclass));
 		}
@@ -145,7 +153,7 @@ public class InheritanceMap
 		if (paramClass.superName != null)
 		{
 			String superclassname = paramClass.superName;
-			ClassNode superclass = InheritanceMap.locateClass(superclassname);
+			ClassNode superclass = locateClass(superclassname);
 			if (superclass == null) System.out.println("ERROR: Unable to locate " + superclassname);
 			else classmap.mergeMap(buildMap(superclass));
 		}
@@ -181,7 +189,7 @@ public class InheritanceMap
 		return null;
 	}
 	
-	public static ClassNode locateClass(String classname) throws IOException
+	public ClassNode locateClass(String classname) throws IOException
 	{
 		return DynamicMappings.getClassNode(classname);
 		
@@ -235,7 +243,9 @@ public class InheritanceMap
 	
 	public static void main(String[] args) throws IOException 
 	{
-		InheritanceMap map = InheritanceMap.buildMap("ake");
+		InheritanceMap base = new InheritanceMap();
+		
+		InheritanceMap map = base.buildMap("ake");
 		System.out.println("Fields: ");
 		for (String key : map.fields.keySet()) {
 			System.out.println("  " + key);
