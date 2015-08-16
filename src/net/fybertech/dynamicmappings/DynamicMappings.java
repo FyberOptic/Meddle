@@ -24,9 +24,11 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.IntInsnNode;
+import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.TableSwitchInsnNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 
 import net.fybertech.meddle.Meddle;
@@ -343,7 +345,8 @@ public class DynamicMappings
 		if (worldClass == null) return false;
 
 		Set<String> potentialClasses = new HashSet<String>();
-
+		
+		// Discover and filter all static fields accessed in World's methods
 		for (MethodNode method : (List<MethodNode>)worldClass.methods) {
 			for (AbstractInsnNode node = method.instructions.getFirst(); node != null; node = node.getNext()) {
 				if (node.getOpcode() != Opcodes.GETSTATIC) continue;
@@ -356,9 +359,10 @@ public class DynamicMappings
 				potentialClasses.add(fieldNode.owner);
 			}
 		}
-
+		
 		String[] matchStrings = new String[] { "Accessed Blocks before Bootstrap!", "air", "stone" };
 
+		// Find net.minecraft.init.Blocks from what's left
 		for (String className : potentialClasses) {
 			if (searchConstantPoolForStrings(className, matchStrings))	{
 				ClassNode blocksClass = getClassNode(className);
@@ -379,6 +383,7 @@ public class DynamicMappings
 
 		Map<String, Integer> classes = new HashMap<String, Integer>();
 
+		// Make a tally of how many times a class was used in the field descriptors
 		for (FieldNode field : (List<FieldNode>)blocksClass.fields) {
 			String descClass = Type.getType(field.desc).getClassName();
 			int val = (classes.containsKey(descClass) ? classes.get(descClass) : 0);
@@ -389,10 +394,12 @@ public class DynamicMappings
 		String mostClass = null;
 		int mostCount = 0;
 
+		// Find the one with the highest count
 		for (String key : classes.keySet()) {
 			if (classes.get(key) > mostCount) { mostClass = key; mostCount = classes.get(key); }
 		}
 
+		// The standard Block class is used far more than any other, so we've found it
 		if (mostCount > 100) {
 			ClassNode blockClass = getClassNode(mostClass);
 			addClassMapping("net/minecraft/block/Block", blockClass);
@@ -449,7 +456,7 @@ public class DynamicMappings
 		ClassNode world = getClassNode(getClassMapping("net/minecraft/world/World"));
 		if (world == null) return false;
 
-		// We won't know for sure if they added more
+		// We won't know for sure if they added more interfaces
 		if (world.interfaces.size() != 1) return false;
 
 		ClassNode classBlockAccess = getClassNode(world.interfaces.get(0));		
@@ -500,6 +507,9 @@ public class DynamicMappings
 	@Mapping(provides={
 			"net/minecraft/entity/item/EntityItem",
 			"net/minecraft/item/ItemStack"},
+			providesMethods={
+			"net/minecraft/block/Block spawnAsEntity (Lnet/minecraft/world/World;Lnet/minecraft/util/BlockPos;Lnet/minecraft/item/ItemStack;)V"
+			},
 			depends={
 			"net/minecraft/world/World",
 			"net/minecraft/util/BlockPos",
@@ -538,6 +548,9 @@ public class DynamicMappings
 
 					// This also means that the last arg for spawnAsEntity is ItemStack
 					addClassMapping("net/minecraft/item/ItemStack", getClassNode(arguments[2].getClassName()));
+					
+					addMethodMapping("net/minecraft/block/Block spawnAsEntity (Lnet/minecraft/world/World;Lnet/minecraft/util/BlockPos;Lnet/minecraft/item/ItemStack;)V",
+							blockClass.name + " " + method.name + " " + method.desc);
 					
 					return true;
 				}
@@ -628,9 +641,11 @@ public class DynamicMappings
 		ClassNode blockClass = getClassNode(getClassMapping("net/minecraft/block/Block"));
 		if (blockClass == null || blockLeaves == null || blockLeaves.superName == null) return false;
 		
+		// BlockLeaves extends BlockLeavesBase
 		ClassNode blockLeavesBase = getClassNode(blockLeaves.superName);
 		if (blockLeavesBase == null || blockLeavesBase.superName == null) return false;				
-		// BlockLeavesBase should extend Block
+		
+		// BlockLeavesBase should then extend Block, otherwise class hierarchy is unknown
 		if (!blockClass.name.equals(blockLeavesBase.superName)) return false;
 
 		addClassMapping("net/minecraft/block/BlockLeavesBase", blockLeavesBase);
@@ -649,7 +664,7 @@ public class DynamicMappings
 		List<String> possibleClasses = new ArrayList<String>();
 
 		for (MethodNode method : (List<MethodNode>)itemStackClass.methods)
-		{
+		{			
 			if (!method.name.equals("<init>")) continue;
 			Type t = Type.getMethodType(method.desc);
 			Type[] args = t.getArgumentTypes();
@@ -701,19 +716,18 @@ public class DynamicMappings
 		ClassNode teProviderClass = getClassNode(getClassMapping("net/minecraft/block/ITileEntityProvider"));
 		if (teProviderClass == null) return false;
 
-		if (teProviderClass.methods.size() != 1) return false;
+		for (MethodNode method : teProviderClass.methods) 
+		{
+			Type t = Type.getMethodType(method.desc);
+			Type returnType = t.getReturnType();
+			if (returnType.getSort() != Type.OBJECT) return false;
 
-		MethodNode m = teProviderClass.methods.get(0);
-
-		Type t = Type.getMethodType(m.desc);
-		Type returnType = t.getReturnType();
-		if (returnType.getSort() != Type.OBJECT) return false;
-
-		String teClassName = returnType.getClassName();
-		if (searchConstantPoolForStrings(teClassName, "Furnace", "MobSpawner")) {
-			addClassMapping("net/minecraft/tileentity/TileEntity", getClassNode(teClassName));
-			return true;
-		}
+			String teClassName = returnType.getClassName();
+			if (searchConstantPoolForStrings(teClassName, "Furnace", "MobSpawner")) {
+				addClassMapping("net/minecraft/tileentity/TileEntity", getClassNode(teClassName));
+				return true;
+			}	
+		}		
 
 		return false;
 	}
@@ -790,6 +804,8 @@ public class DynamicMappings
 
 		String className = null;
 
+		// Try to find: public void travelToDimension(int)
+		// NOTE: Mojang changed to public Entity travelToDimension(int, BlockPos)
 		for (MethodNode method : (List<MethodNode>)entity.methods)
 		{
 			if (!method.desc.startsWith("(I")) continue;
@@ -826,7 +842,10 @@ public class DynamicMappings
 	// Parses net.minecraft.entity.EntityList to match entity names to
 	// their associated classes.
 	// Note: Doesn't handle minecarts, as those aren't registered directly with names.
-	@Mapping(provides={"net/minecraft/entity/monster/EntityZombie"}, 
+	@Mapping(provides={
+			"net/minecraft/entity/monster/EntityZombie",
+			"net/minecraft/entity/passive/EntityVillager"
+			}, 
 			depends="net/minecraft/entity/EntityList")
 	public static boolean parseEntityList()
 	{
@@ -861,6 +880,13 @@ public class DynamicMappings
 		if (zombieClass != null) {
 			if (searchConstantPoolForStrings(zombieClass,  "zombie.spawnReinforcements", "IsBaby")) {
 				addClassMapping("net/minecraft/entity/monster/EntityZombie", getClassNode(zombieClass));				
+			}			
+		}
+		
+		String villagerClass = entityListClasses.get("Villager");
+		if (villagerClass != null) {
+			if (searchConstantPoolForStrings(villagerClass, "Profession", "entity.Villager.")) {
+				addClassMapping("net/minecraft/entity/passive/EntityVillager", getClassNode(villagerClass));				
 			}			
 		}
 		
@@ -1013,19 +1039,66 @@ public class DynamicMappings
 	
 	
 	
+	public static String assembleDescriptor(Object... objects)
+	{
+		String output = "";
+		
+		for (Object o : objects) {
+			if (o instanceof String) output += (String)o;
+			else if (o instanceof ClassNode) output += "L" + ((ClassNode)o).name + ";";
+		}
+		
+		return output;
+	}
+	
+	
+	
 	@Mapping(provides={},
+			providesMethods={
+			"net/minecraft/block/Block onBlockActivated (Lnet/minecraft/world/World;Lnet/minecraft/util/BlockPos;Lnet/minecraft/block/state/IBlockState;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/util/MainOrOffHand;Lnet/minecraft/item/ItemStack;Lnet/minecraft/util/EnumFacing;FFF)Z"
+			},
 			 depends={
 			"net/minecraft/block/Block",
-			"net/minecraft/item/Item"})
+			"net/minecraft/item/Item",
+			"net/minecraft/item/ItemStack",
+			"net/minecraft/world/World",
+			"net/minecraft/util/BlockPos",
+			"net/minecraft/block/state/IBlockState",
+			"net/minecraft/entity/player/EntityPlayer",
+			"net/minecraft/util/MainOrOffHand",
+			"net/minecraft/util/EnumFacing"
+			})
 	public static boolean processBlockClass()
 	{
 		ClassNode block = getClassNodeFromMapping("net/minecraft/block/Block");
 		ClassNode item = getClassNodeFromMapping("net/minecraft/item/Item");
+		ClassNode itemStack = getClassNodeFromMapping("net/minecraft/item/ItemStack");
+		ClassNode world = getClassNodeFromMapping("net/minecraft/world/World");
+		ClassNode blockPos = getClassNodeFromMapping("net/minecraft/util/BlockPos");		
+		ClassNode blockState = getClassNodeFromMapping("net/minecraft/block/state/IBlockState");
+		ClassNode entityPlayer = getClassNodeFromMapping("net/minecraft/entity/player/EntityPlayer");
+		ClassNode mainOrOffHand = getClassNodeFromMapping("net/minecraft/util/MainOrOffHand");
+		ClassNode enumFacing = getClassNodeFromMapping("net/minecraft/util/EnumFacing");
+		
+		if (!MeddleUtil.notNull(block, item, itemStack, blockPos, world, blockState, entityPlayer, mainOrOffHand, enumFacing)) return false;
 		
 		//private static void registerBlock(int, ResourceLocation, Block)
 		for (MethodNode method : block.methods) {
 			if ((method.access & Opcodes.ACC_STATIC) == 0) continue;
 			//System.out.println(method);
+		}
+		
+		
+		List<MethodNode> methods;
+		
+		
+		// public boolean onBlockActivated(World, BlockPos, IBlockState, EntityPlayer, MainOrOffHand, ItemStack, EnumFacing, float, float, float)
+		String descriptor = assembleDescriptor("(", world, blockPos, blockState, entityPlayer, mainOrOffHand, itemStack, enumFacing, "FFF)Z");
+		methods = getMatchingMethods(block,  null,  descriptor);
+		if (methods.size() == 1) {
+			MethodNode method = methods.get(0);
+			addMethodMapping("net/minecraft/block/Block onBlockActivated (Lnet/minecraft/world/World;Lnet/minecraft/util/BlockPos;Lnet/minecraft/block/state/IBlockState;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/util/MainOrOffHand;Lnet/minecraft/item/ItemStack;Lnet/minecraft/util/EnumFacing;FFF)Z",
+					block.name + " " + method.name + " " + method.desc);
 		}
 		
 		return true;
@@ -1369,6 +1442,350 @@ public class DynamicMappings
 	}
 	
 	
+	public static MethodNode getMethodNodeFromMapping(ClassNode cn, String deobfMapping)
+	{
+		String mapping = getMethodMapping(deobfMapping);
+		if (cn == null || mapping == null) return null;
+		
+		String[] split = mapping.split(" ");
+		if (split.length < 3) return null;
+		
+		for (MethodNode method : cn.methods) {
+			if (method.name.equals(split[1]) && method.desc.equals(split[2])) {
+				return method;
+			}
+		}
+		
+		return null;
+	}
+	
+	
+	
+	@Mapping(provides={
+			"net/minecraft/inventory/IInventory"
+			},
+			providesMethods={
+			"net/minecraft/entity/player/EntityPlayer displayGUIChest (Lnet/minecraft/inventory/IInventory;)V"
+			},
+			dependsMethods={
+			"net/minecraft/block/Block onBlockActivated (Lnet/minecraft/world/World;Lnet/minecraft/util/BlockPos;Lnet/minecraft/block/state/IBlockState;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/util/MainOrOffHand;Lnet/minecraft/item/ItemStack;Lnet/minecraft/util/EnumFacing;FFF)Z"
+			},
+			depends={
+			"net/minecraft/block/BlockChest",
+			"net/minecraft/entity/player/EntityPlayer"
+			})
+	public static boolean processBlockChestClass()
+	{
+		ClassNode blockChest = getClassNodeFromMapping("net/minecraft/block/BlockChest");
+		ClassNode entityPlayer = getClassNodeFromMapping("net/minecraft/entity/player/EntityPlayer");
+		if (blockChest == null || entityPlayer == null) return false;
+		
+		MethodNode onBlockActivated = getMethodNodeFromMapping(blockChest, "net/minecraft/block/Block onBlockActivated (Lnet/minecraft/world/World;Lnet/minecraft/util/BlockPos;Lnet/minecraft/block/state/IBlockState;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/util/MainOrOffHand;Lnet/minecraft/item/ItemStack;Lnet/minecraft/util/EnumFacing;FFF)Z");		
+		if (onBlockActivated == null) return false;
+		
+		for (AbstractInsnNode insn = onBlockActivated.instructions.getFirst(); insn != null; insn = insn.getNext()) {
+			if (!(insn instanceof MethodInsnNode)) continue;
+			MethodInsnNode mn = (MethodInsnNode)insn;
+			if (!mn.owner.equals(entityPlayer.name)) continue;
+			Type t = Type.getMethodType(mn.desc);
+			Type[] args = t.getArgumentTypes();
+			if (args.length < 1 || args[0].getSort() != Type.OBJECT) continue;
+			
+			String className = args[0].getClassName();
+			ClassNode cn = getClassNode(className);
+			if ((cn.access & Opcodes.ACC_INTERFACE) == 0) continue;			
+			
+			addClassMapping("net/minecraft/inventory/IInventory", className);
+			addMethodMapping("net/minecraft/entity/player/EntityPlayer displayGUIChest (Lnet/minecraft/inventory/IInventory;)V",
+					entityPlayer.name + " " + mn.name + " " + mn.desc);
+			break;
+		}
+		
+		
+		return true;
+	}
+			
+	@Mapping(provides={
+			"net/minecraft/world/IWorldNameable",
+			"net/minecraft/util/IChatComponent"
+			},
+			providesMethods={
+			"net/minecraft/world/IWorldNameable hasCustomName ()Z",
+			"net/minecraft/world/IWorldNameable getName ()Ljava/lang/String;",
+			"net/minecraft/world/IWorldNameable getDisplayName ()Lnet/minecraft/util/IChatComponent;"
+			},
+			depends={
+			"net/minecraft/inventory/IInventory"
+			})
+	public static boolean processIWorldNameable()
+	{		
+		ClassNode inventory = getClassNodeFromMapping("net/minecraft/inventory/IInventory");
+		if (inventory == null) return false;
+		
+		if (inventory.interfaces.size() != 1) return false;
+		String className = inventory.interfaces.get(0);
+		
+		addClassMapping("net/minecraft/world/IWorldNameable", className);
+		
+		ClassNode worldNameable = getClassNode(className);
+		if (worldNameable == null) return false;
+		
+		if (worldNameable.methods.size() != 3) return false;
+		for (MethodNode method : worldNameable.methods) {
+			Type t = Type.getMethodType(method.desc);
+			Type returnType = t.getReturnType();
+			
+			if (returnType.getSort() == Type.BOOLEAN) {
+				addMethodMapping("net/minecraft/world/IWorldNameable hasCustomName ()Z", worldNameable.name + " " + method.name + " ()Z");
+				continue;
+			}
+			
+			if (returnType.getSort() == Type.OBJECT) {				
+				if (returnType.getClassName().equals("java.lang.String")) {
+					addMethodMapping("net/minecraft/world/IWorldNameable getName ()Ljava/lang/String;", worldNameable.name + " " + method.name + " " + method.desc);
+					continue;
+				}
+				
+				addClassMapping("net/minecraft/util/IChatComponent", returnType.getClassName());				
+				addMethodMapping("net/minecraft/world/IWorldNameable getDisplayName ()Lnet/minecraft/util/IChatComponent;", worldNameable.name + " " + method.name + " " + method.desc);
+			}
+		}
+		
+		
+		return true;
+	}
+	
+	
+	@Mapping(provides="net/minecraft/util/ChatComponentText", depends="net/minecraft/server/MinecraftServer")
+	public static boolean getChatComponentTextClass()
+	{
+		ClassNode server = getClassNode("net/minecraft/server/MinecraftServer");
+		if (server == null) return false;
+		
+		List<MethodNode> methods = getMatchingMethods(server, "run", "()V");
+		if (methods.size() != 1) return false;
+		
+		for (AbstractInsnNode insn = methods.get(0).instructions.getFirst(); insn != null; insn = insn.getNext()) {
+			if (insn.getOpcode() != Opcodes.NEW) continue;
+			TypeInsnNode tn = (TypeInsnNode)insn;
+			if (searchConstantPoolForStrings(tn.desc, "TextComponent{text=\'")) {
+				addClassMapping("net/minecraft/util/ChatComponentText", tn.desc);
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	
+	
+	@Mapping(provides={
+			"net/minecraft/inventory/InventoryBasic"
+			},
+			depends={
+			"net/minecraft/entity/passive/EntityVillager",
+			"net/minecraft/inventory/IInventory"
+			})
+	public static boolean processEntityVillagerClass() 
+	{
+		ClassNode villager = getClassNodeFromMapping("net/minecraft/entity/passive/EntityVillager");
+		ClassNode inventory = getClassNodeFromMapping("net/minecraft/inventory/IInventory");
+		if (villager == null || inventory == null) return false;
+		
+		for (MethodNode method : villager.methods) {
+			if (!method.name.equals("<init>")) continue;
+			
+			for (AbstractInsnNode insn = method.instructions.getFirst(); insn != null; insn = insn.getNext()) {
+				if (insn.getOpcode() != Opcodes.NEW) continue;
+				TypeInsnNode tn = (TypeInsnNode)insn;
+				
+				ClassNode node = getClassNode(tn.desc);
+				if (node == null) continue;
+				
+				boolean isInventory = false;
+				for (String iface : node.interfaces) {
+					if (inventory.name.equals(iface)) isInventory = true;
+				}
+				
+				if (!isInventory) continue;
+				
+				// TODO - Find more accurate way of detecting this class
+				addClassMapping("net/minecraft/inventory/InventoryBasic", node.name);
+				return true;
+			}
+			
+		}
+		
+		
+		return false;
+	}
+	
+	
+	
+	@Mapping(provides={
+			},
+			depends={
+			"net/minecraft/entity/player/EntityPlayer"
+			})
+	public static boolean processEntityPlayerClass()
+	{
+		ClassNode entityPlayer = getClassNodeFromMapping("net/minecraft/entity/player/EntityPlayer");
+		if (entityPlayer == null) return false;
+		
+		for (MethodNode method : entityPlayer.methods) {
+			Type t = Type.getMethodType(method.desc);
+			Type[] args = t.getArgumentTypes();
+			if (args.length != 1 || args[0].getSort() != Type.OBJECT || t.getReturnType().getSort() != Type.VOID) continue;
+			//System.out.println(method.name + " " + method.desc);
+		}
+		
+		// TODO - Get displayChestGui
+		
+		
+		return true;
+	}
+	
+	
+	
+	public static AbstractInsnNode getNextRealOpcode(AbstractInsnNode insn)
+	{
+		while (insn != null && insn.getOpcode() < 0) insn = insn.getNext();
+		return insn;
+	}
+	
+	
+	
+	@Mapping(provides={
+			"net/minecraft/nbt/NBTTagCompound",
+			"net/minecraft/nbt/NBTBase",
+			"net/minecraft/nbt/NBTTagEnd",
+			"net/minecraft/nbt/NBTTagByte",
+			"net/minecraft/nbt/NBTTagShort",
+			"net/minecraft/nbt/NBTTagInt",
+			"net/minecraft/nbt/NBTTagLong",
+			"net/minecraft/nbt/NBTTagFloat",
+			"net/minecraft/nbt/NBTTagDouble",
+			"net/minecraft/nbt/NBTTagByteArray",
+			"net/minecraft/nbt/NBTTagString",
+			"net/minecraft/nbt/NBTTagList",
+			"net/minecraft/nbt/NBTTagIntArray"
+			}, 
+			providesMethods={
+			"net/minecraft/item/ItemStack writeToNBT (Lnet/minecraft/nbt/NBTTagCompound;)Lnet/minecraft/nbt/NBTTagCompound;",
+			"net/minecraft/nbt/NBTBase createNewByType (B)Lnet/minecraft/nbt/NBTBase;"
+			},
+			depends={
+			"net/minecraft/item/ItemStack"
+			})
+	public static boolean getNBTClasses()
+	{
+		ClassNode itemStack = getClassNodeFromMapping("net/minecraft/item/ItemStack");
+		if (itemStack == null) return false;		
+		
+		String tagCompoundName = null;
+		
+		// Find: public NBTTagCompound writeToNBT(NBTTagCompound)
+		for (MethodNode method : itemStack.methods) {
+			Type t = Type.getMethodType(method.desc);
+			Type[] args = t.getArgumentTypes();
+			Type returnType = t.getReturnType();
+			
+			if (args.length != 1) continue;
+			if (args[0].getSort() != Type.OBJECT || returnType.getSort() != Type.OBJECT) continue;
+			if (!args[0].getClassName().equals(returnType.getClassName())) continue;
+			
+			tagCompoundName = returnType.getClassName();
+			
+			if (searchConstantPoolForStrings(tagCompoundName, "Tried to read NBT tag with too high complexity, depth > 512")) {
+				addClassMapping("net/minecraft/nbt/NBTTagCompound", tagCompoundName);
+				addMethodMapping("net/minecraft/item/ItemStack writeToNBT (Lnet/minecraft/nbt/NBTTagCompound;)Lnet/minecraft/nbt/NBTTagCompound;",
+						itemStack.name + " " + method.name + " " + method.desc);
+				break;
+			}	
+			tagCompoundName = null;
+		}		
+		if (tagCompoundName == null) return false;
+		
+		ClassNode tagCompound = getClassNode(tagCompoundName);
+		if (tagCompound == null) return false;		
+		ClassNode tagBase = getClassNode(tagCompound.superName);
+		if (tagBase == null) return false;
+		
+		if (!searchConstantPoolForStrings(tagBase.name, "END", "BYTE", "SHORT")) return false;		
+		
+		addClassMapping("net/minecraft/nbt/NBTBase", tagBase.name);
+		
+		Map<Integer, String> nbtClassesMap = new HashMap<Integer, String>();
+		
+		// We want: protected static NBTBase createNewByType(byte id)
+		for (MethodNode method : tagBase.methods) {
+			Type t = Type.getMethodType(method.desc);
+			Type[] args = t.getArgumentTypes();
+			Type returnType = t.getReturnType();			
+			
+			if (args.length != 1) continue;
+			if (args[0].getSort() != Type.BYTE) continue;
+			if (!returnType.getClassName().equals(tagBase.name)) continue;
+			
+			addMethodMapping("net/minecraft/nbt/NBTBase createNewByType (B)Lnet/minecraft/nbt/NBTBase;", tagBase.name + " " + method.name + " " + method.desc);
+			
+			// Find the tableswitch to parse
+			for (AbstractInsnNode insn = method.instructions.getFirst(); insn != null; insn = insn.getNext()) {				
+				if (insn.getOpcode() != Opcodes.TABLESWITCH) continue;
+				TableSwitchInsnNode table = (TableSwitchInsnNode)insn;
+				
+				// There's 12 NBT types, otherwise this table isn't reliable
+				if (table.labels.size() != 12) continue;
+				
+				for (int n = 0; n < 12; n++) {
+					AbstractInsnNode destInsn = table.labels.get(n);
+					AbstractInsnNode nextReal = getNextRealOpcode(destInsn);
+					
+					// Every jump target should be creating a new instance of an NBT type
+					if (nextReal.getOpcode() != Opcodes.NEW) return false;					
+					nbtClassesMap.put(n, ((TypeInsnNode)nextReal).desc);					
+				}
+			}
+		}
+		
+		for (Integer key : nbtClassesMap.keySet()) {
+			String className = nbtClassesMap.get(key);
+			if (className == null) continue;
+			
+			switch (key) {
+				case 0: addClassMapping("net/minecraft/nbt/NBTTagEnd", className);
+						continue;
+				case 1: addClassMapping("net/minecraft/nbt/NBTTagByte", className);
+						continue;
+				case 2: addClassMapping("net/minecraft/nbt/NBTTagShort", className);
+						continue;
+				case 3: addClassMapping("net/minecraft/nbt/NBTTagInt", className);
+						continue;
+				case 4: addClassMapping("net/minecraft/nbt/NBTTagLong", className);
+						continue;
+				case 5: addClassMapping("net/minecraft/nbt/NBTTagFloat", className);
+						continue;
+				case 6: addClassMapping("net/minecraft/nbt/NBTTagDouble", className);
+						continue;
+				case 7: addClassMapping("net/minecraft/nbt/NBTTagByteArray", className);
+						continue;
+				case 8: addClassMapping("net/minecraft/nbt/NBTTagString", className);
+						continue;
+				case 9: addClassMapping("net/minecraft/nbt/NBTTagList", className);
+						continue;
+				case 10: // Already added this earlier
+						continue;
+				case 11: addClassMapping("net/minecraft/nbt/NBTTagIntArray", className);
+						continue;		
+			}
+		}
+		
+		
+		
+		return true;
+	}
+	
+	
+	
 	
 	
 	public static void generateClassMappings()
@@ -1498,6 +1915,9 @@ public class DynamicMappings
 	}
 
 
+	
+	
+	
 
 	public static void generateMethodMappings()
 	{
@@ -1533,6 +1953,11 @@ public class DynamicMappings
 	public static String getMethodMapping(String className, String methodName, String methodDesc)
 	{
 		return methodMappings.get(className + " " + methodName + " " + methodDesc);
+	}
+	
+	public static String getMethodMapping(String mapping)
+	{
+		return methodMappings.get(mapping);
 	}
 
 	public static String getMethodMappingName(String className, String methodName, String methodDesc)
