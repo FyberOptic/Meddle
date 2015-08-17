@@ -12,10 +12,16 @@ public class Mod
 
 	public Mod()
 	{
+		System.out.println("Mod()");
+	}
+	
+	public void init()
+	{
+		System.out.println("init()");
+		
 		MeddleAPI.registerItem(5000, "testItem", item);
 
 		Minecraft.getMinecraft().getRenderItem().getItemModelMesher().register(item, 0, new ModelResourceLocation("testItem", "inventory"));
-
 	}
 
 }

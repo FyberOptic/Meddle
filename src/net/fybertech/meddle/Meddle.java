@@ -23,23 +23,35 @@ import net.minecraft.launchwrapper.Launch;
 import net.minecraft.launchwrapper.LaunchClassLoader;
 
 
-public class Meddle implements ITweaker {
-
-	public List<String> args = new ArrayList<String>();
-
-	protected static List<ModContainer> discoveredModsList = new ArrayList<ModContainer>();
-	protected static Map<String, ModContainer> loadedModsList = new HashMap<String, ModContainer>();
-
+public class Meddle implements ITweaker 
+{
 	public static final Logger LOGGER = LogManager.getLogger("Meddle");
+	
+	// Command-line arguments received from LaunchWrapper
+	public final List<String> args = new ArrayList<String>();
 
-	static Set<String> classloaderExceptions = null;
+	// Containers for all jars discovered in the Meddle folder
+	public static final List<ModContainer> discoveredModsList = new ArrayList<ModContainer>();
+	
+	// Discovered mod IDs and their associated containers 
+	public static final Map<String, ModContainer> loadedModsList = new HashMap<String, ModContainer>();
 
-	// Changelog 1.2
+	// LaunchClassLoader's exception list, obtained via reflection
+	static Set<String> classloaderExceptions = null;	
+	
+
+	// Changelog 
+	// v1.2
 	// - Added server-side compatibility
 	// - Moved dynamic mappings to separate mod
 	// - Added optional MeddleMod annotation
 	// - Added mod priority (via MeddleMod)
-
+	//
+	// v1.2.1 
+	// - Recompiled for Java 7
+	//
+	// v1.2.2
+	// - Changed access of some mod-related objects
 
 
 	@SuppressWarnings("unchecked")
@@ -69,7 +81,7 @@ public class Meddle implements ITweaker {
 
 	public static String getVersion()
 	{
-		return "1.2.1";
+		return "1.2.2-alpha";
 	}
 
 
@@ -79,7 +91,7 @@ public class Meddle implements ITweaker {
 	}
 
 
-	static class ModContainer
+	public static class ModContainer
 	{
 		public File jar;
 		public Class<? extends ITweaker> tweakClass;
