@@ -1,153 +1,28 @@
+apply plugin: 'java'
 
-
-subprojects {
-	apply plugin: 'java'  
-	
-	dependencies {
-		compile fileTree('../libs/')
-	}
-	
-	sourceCompatibility = '1.7'
-	
-	buildDir = file('../builds/' + project.name)
-	
-	sourceSets {
-		main {
-			java {
-				srcDirs = ['../src']
-				include 'net/fybertech/' + project.name + '/**'
-			}
+sourceSets {
+	main {
+		java {
+			srcDirs = ['src']
 		}
 	}
-	
-	gradle.projectsEvaluated {
-        tasks.withType(JavaCompile) {
-            options.compilerArgs << "-Xlint:unchecked"
-        }
+}
+
+dependencies {
+	compile fileTree('../libs/')
+}
+
+gradle.projectsEvaluated {
+    tasks.withType(JavaCompile) {
+        options.compilerArgs << "-Xlint:-options"
     }
 }
 
+sourceCompatibility = '1.7'
+targetCompatibility = '1.7'
 
-project(':meddle') {
-    
-	version = '1.2.2-alpha'
-	
-}
-
-
-project(':firespread') {
-	
-	version = 'dynamic-1.2.1'
-    
-    dependencies {
-        compile project(':meddle')
-		compile project(':dynamicmappings');
-    }
-
-	jar {
-		manifest {
-			attributes('TweakClass' : 'net.fybertech.firespread.FireTweaker')
-		}        
-	}
-}
-
-
-project(':alltheitems') {
-	
-	version = 'dynamic-1.2.1'
-    
-    dependencies {
-        compile project(':meddle')
-		compile project(':dynamicmappings');
-    }
-	
-	jar {
-		manifest {
-			attributes('TweakClass' : 'net.fybertech.alltheitems.AllTheItems')
-		}        
-	}
-	
-}
-
-
-project(':leafdecay') {
-	
-	version = 'dynamic-1.2.1'
-    
-    dependencies {
-        compile project(':meddle')
-		compile project(':dynamicmappings');
-    }
-	
-	jar {
-		manifest {
-			attributes('TweakClass' : 'net.fybertech.leafdecay.LeafDecay')
-		}        
-	}
-	
-}
-
-
-project(':physicsfix') {
-	
-	version = 'dynamic-1.2.1'
-    
-    dependencies {
-        compile project(':meddle')
-		compile project(':dynamicmappings');
-    }
-	
-	jar {
-		manifest {
-			attributes('TweakClass' : 'net.fybertech.physicsfix.PhysicsTweaker')
-		}        
-	}
-	
-}
-
-
-project(':babybuster') {
-	
-	version = 'dynamic-1.2.1'
-	
-	dependencies {
-        compile project(':meddle')
-		compile project(':dynamicmappings');
-	}
-	
-	jar {
-		manifest {
-			attributes('TweakClass' : 'net.fybertech.babybuster.ZombieTweak')
-		}
-	}
-	
-}
-
-
-project(':dynamicmappings') {
-	
-	version = '005-alpha'
-	
-	dependencies {
-		compile project(':meddle')
-	}
-	
-	jar {
-		manifest {
-			attributes('TweakClass' : 'net.fybertech.dynamicmappings.Tweaker')
-		}
-	}
-	
-}
-
-project(':servergenerator') {
-
-    version = '1.0.1'
-    
-    jar {
-        manifest {
-            attributes('Main-Class' : 'net.fybertech.servergenerator.ServerGenerator')
-        }
-    }   
+jar {
+    baseName = 'meddle'
+    version = '1.2.2-alpha'
 }
 

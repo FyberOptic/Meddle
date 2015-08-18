@@ -51,7 +51,7 @@ public class Meddle implements ITweaker
 	// - Recompiled for Java 7
 	//
 	// v1.2.2
-	// - Changed access of some mod-related objects
+	// - Changed access of some objects for MeddleAPI
 
 
 	@SuppressWarnings("unchecked")
