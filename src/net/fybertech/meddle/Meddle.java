@@ -38,6 +38,9 @@ public class Meddle implements ITweaker
 
 	// LaunchClassLoader's exception list, obtained via reflection
 	static Set<String> classloaderExceptions = null;	
+
+	// Meddle's directory in your instance directory
+	private static File meddleDir = null;
 	
 
 	// Changelog 
@@ -52,6 +55,7 @@ public class Meddle implements ITweaker
 	//
 	// v1.2.2
 	// - Changed access of some objects for MeddleAPI
+	// - Added getters for Meddle base and config dirs
 
 
 	@SuppressWarnings("unchecked")
@@ -81,9 +85,23 @@ public class Meddle implements ITweaker
 
 	public static String getVersion()
 	{
-		return "1.2.2-alpha";
+		return "1.2.2";
 	}
 
+	
+	public static File getMeddleDir()
+	{
+		return meddleDir;
+	}
+	
+	
+	public static File getConfigDir()
+	{
+		File configDir = new File(meddleDir, "config/");
+		if (!configDir.exists()) configDir.mkdir();
+		return configDir;		
+	}
+	
 
 	public static boolean isModLoaded(String modID)
 	{
@@ -196,10 +214,10 @@ public class Meddle implements ITweaker
 		}
 
 		if (gameDir == null) gameDir = new File(".");
-		File tweakDir = new File(gameDir, "meddle/");
-		tweakDir.mkdirs();
+		meddleDir = new File(gameDir, "meddle/");
+		meddleDir.mkdirs();		
 
-		File[] files = tweakDir.listFiles();
+		File[] files = meddleDir.listFiles();
 		Arrays.sort(files);
 		for (File f : files) {
 			if (!f.getName().toLowerCase().endsWith(".jar")) continue;

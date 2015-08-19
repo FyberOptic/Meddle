@@ -1,3 +1,6 @@
+v1.0
+ - Initial release!
+
 v1.1
  - Sorted listFiles to help ensure some degree of predictability to mod load order
  - Added getVersion() for whenever that becomes relevant
@@ -6,4 +9,16 @@ v1.1
  - Added TransformerClass manifest attribute to allow using ITransformer classes directly
  - Added dynamic class mappings system to help avoid updating mods as frequently
  
+v1.2
+ - Added server-side compatibility
+ - Moved dynamic mappings to separate mod
+ - Added optional MeddleMod annotation
+ - Added mod priority (via MeddleMod)
+
+v1.2.1 
+ - Recompiled for Java 7 instead of 8 (for some servers without the latest)
+
+v1.2.2 - August 19th, 2015
+ - Changed access of some objects for MeddleAPI
+ - Added getters for Meddle base and config dirs
  
