@@ -1,6 +1,6 @@
 # Meddle
 
-A tweak-class mod loader for Minecraft.  Should be compatibile with any version of Minecraft capable of working under Launchwrapper.
+A tweak-class mod loader for Minecraft.  Should be compatible with any version of Minecraft capable of working under Launchwrapper.
 
 Meddle acts as a pass-through to allow mods which implement net.minecraft.launchwrapper.ITweaker to run without the modder having to deal with manually installing them.
 
@@ -12,3 +12,4 @@ If desired, mods may include the MeddleMod annotation on their tweak class to de
 
 See the [DynamicMappings](https://github.com/FyberOptic/DynamicMappings) and [MeddleMods](https://github.com/FyberOptic/MeddleMods) projects for examples of Meddle's use.
 
+For higher-level development, there's also [MeddleAPI](https://github.com/FyberOptic/MeddleAPI), which is what [Just Backpack](https://github.com/FyberOptic/JustBackpack) uses.
