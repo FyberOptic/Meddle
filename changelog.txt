@@ -22,3 +22,9 @@ v1.2.2 - August 19th, 2015
  - Changed access of some objects for MeddleAPI
  - Added getters for Meddle base and config dirs
  
+v1.3 - November 2nd, 2015
+ - Added --meddleDir argument, to specify custom directory for mods.
+ - Added --meddleConfigDir argument, to specify custom config file directory.
+ - Added --meddleMain argument, to specify a custom main class to execute (improves support for older game versions).
+ - Removed deprecated DynamicMappings wrapper class.
+ 

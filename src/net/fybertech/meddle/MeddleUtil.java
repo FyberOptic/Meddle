@@ -14,6 +14,7 @@ import org.objectweb.asm.tree.MethodNode;
 
 public class MeddleUtil {
 
+	// Cached value
 	private static String minecraftVersion = null;
 
 
@@ -92,6 +93,7 @@ public class MeddleUtil {
 	}
 
 
+	// Cached value
 	private static int clientOrServer = -1;
 
 	public static boolean isClientJar()

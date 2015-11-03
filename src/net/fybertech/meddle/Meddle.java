@@ -6,6 +6,7 @@ import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,36 +28,29 @@ public class Meddle implements ITweaker
 {
 	public static final Logger LOGGER = LogManager.getLogger("Meddle");
 	
-	// Command-line arguments received from LaunchWrapper
+	/** Command-line arguments received from LaunchWrapper */
 	public final List<String> args = new ArrayList<String>();
 
-	// Containers for all jars discovered in the Meddle folder
+	/** Containers for all jars discovered in the Meddle folder */
 	public static final List<ModContainer> discoveredModsList = new ArrayList<ModContainer>();
 	
-	// Discovered mod IDs and their associated containers 
+	/** Discovered mod IDs and their associated containers */ 
 	public static final Map<String, ModContainer> loadedModsList = new HashMap<String, ModContainer>();
 
-	// LaunchClassLoader's exception list, obtained via reflection
+	/** LaunchClassLoader's exception list, obtained via reflection */
 	static Set<String> classloaderExceptions = null;	
 
-	// Meddle's directory in your instance directory
+	/** Meddle's directory in your instance directory */
 	private static File meddleDir = null;
 	
-
-	// Changelog 
-	// v1.2
-	// - Added server-side compatibility
-	// - Moved dynamic mappings to separate mod
-	// - Added optional MeddleMod annotation
-	// - Added mod priority (via MeddleMod)
-	//
-	// v1.2.1 
-	// - Recompiled for Java 7
-	//
-	// v1.2.2
-	// - Changed access of some objects for MeddleAPI
-	// - Added getters for Meddle base and config dirs
-
+	/** Meddle's config directory */
+	private static File configDir = null;
+	
+	/** Custom main class specified from arguments.
+	 *  Only needed for < 1.6, or unique situations. */	  
+	private static String customMainClass = null;
+	
+	
 
 	@SuppressWarnings("unchecked")
 	public Meddle()
@@ -82,27 +76,38 @@ public class Meddle implements ITweaker
 	}
 
 
-
+	/** Get the current Meddle version. */
 	public static String getVersion()
 	{
-		return "1.2.2";
+		return "1.3";
 	}
 
 	
+	/** 
+	 * Gets the main Meddle directory, where mods are stored.
+	 * By default, this is "meddle/"
+	 * 
+	 * Can be specified via --meddleDir argument. 
+	 */
 	public static File getMeddleDir()
 	{
 		return meddleDir;
 	}
 	
 	
+	/**
+	 * Gets the recommended Meddle config file directory.
+	 * By default, this is "meddle/config/"
+	 * 	 
+	 * Can be specified via --meddleConfigDir argument.
+	 */
 	public static File getConfigDir()
 	{
-		File configDir = new File(meddleDir, "config/");
-		if (!configDir.exists()) configDir.mkdir();
-		return configDir;		
+		return configDir;
 	}
 	
 
+	/** Determines if the specified mod ID has already been loaded */
 	public static boolean isModLoaded(String modID)
 	{
 		return loadedModsList.get(modID) != null;
@@ -125,7 +130,7 @@ public class Meddle implements ITweaker
 	}
 
 
-
+	/** Checks if the mod container contains any tweak or transformer class mods. */
 	@SuppressWarnings("unchecked")
 	private void checkJar(ModContainer mod)
 	{
@@ -196,27 +201,60 @@ public class Meddle implements ITweaker
 		String version = MeddleUtil.findMinecraftVersion();
 		LOGGER.info("[Meddle] Minecraft version detected: " + version + " (" + (MeddleUtil.isClientJar() ? "client)" : "server)"));
 
+		
+		// Insert "stage two" tweak into list
 		@SuppressWarnings("unchecked")
 		List<String> tweakClasses = (List<String>)Launch.blackboard.get("TweakClasses");
 		tweakClasses.add(StageTwo.class.getName());
-
+		
+		
 		this.args.clear();
-		this.args.addAll(inArgs);
-
+		meddleDir = null;
+		configDir = null;	
+		
+		// Process arguments
+		for (Iterator<String> it = inArgs.iterator(); it.hasNext();) {
+			String arg = it.next();
+			
+			String argLower = arg.toLowerCase();
+			if (argLower.equals("--meddledir")) {
+				if (it.hasNext()) meddleDir = new File(it.next());
+			}
+			else if (argLower.equals("--meddlemain")) {
+				if (it.hasNext()) customMainClass = it.next();
+			}
+			else if (argLower.equals("--meddleconfigdir")) {
+				if (it.hasNext()) configDir = new File(it.next());
+			}			
+			else args.add(arg);
+		}
+		
+		// If they specified a custom version name, pass it to Minecraft
 		if (profile != null) {
 			this.args.add("--version");
 			this.args.add(profile);
 		}
 
+		// If they specified an assets dir, pass it to Minecraft
 		if (assetsDir != null) {
 			this.args.add("--assetsDir");
 			this.args.add(assetsDir.getPath());
 		}
+		
 
+		// If not specified, current directory is game directory
 		if (gameDir == null) gameDir = new File(".");
-		meddleDir = new File(gameDir, "meddle/");
-		meddleDir.mkdirs();		
+		
+		// If not specified, use "meddle/" for the mods directory
+		if (meddleDir == null) meddleDir = new File(gameDir, "meddle/");
+		if (!meddleDir.exists()) meddleDir.mkdirs();
+		
+		// If not specified, use "meddle/config/" for the mod config directory
+		if (configDir == null) configDir = new File(meddleDir, "config/");
+		if (!configDir.exists()) configDir.mkdirs();
+				
 
+		// Process Meddle directory for mods
 		File[] files = meddleDir.listFiles();
 		Arrays.sort(files);
 		for (File f : files) {
@@ -238,13 +276,17 @@ public class Meddle implements ITweaker
 
 
 	@Override
-	public String[] getLaunchArguments() {
+	public String[] getLaunchArguments() 
+	{
 		return args.toArray(new String[args.size()]);
 	}
 
 
 	@Override
-	public String getLaunchTarget() {
+	public String getLaunchTarget() 
+	{
+		if (customMainClass != null) return customMainClass;
+		
 		if (MeddleUtil.isClientJar()) return "net.minecraft.client.main.Main";
 		else return "net.minecraft.server.MinecraftServer";
 	}
@@ -253,6 +295,7 @@ public class Meddle implements ITweaker
 	@Override
 	public void injectIntoClassLoader(LaunchClassLoader classLoader)
 	{
+		// Register any transformer classes specified in mod manifests
 		for (ModContainer mod : discoveredModsList)
 		{
 			if (mod.transformerClass != null) {
