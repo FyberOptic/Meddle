@@ -36,6 +36,8 @@ public class Meddle implements ITweaker
 	
 	/** Discovered mod IDs and their associated containers */ 
 	public static final Map<String, ModContainer> loadedModsList = new HashMap<String, ModContainer>();
+	
+	public static final List<String> blacklistedTweaks = new ArrayList<String>();
 
 	/** LaunchClassLoader's exception list, obtained via reflection */
 	static Set<String> classloaderExceptions = null;	
@@ -50,6 +52,8 @@ public class Meddle implements ITweaker
 	 *  Only needed for < 1.6, or unique situations. */	  
 	private static String customMainClass = null;
 	
+	public static boolean isBootstrapped = false;
+	
 	
 
 	@SuppressWarnings("unchecked")
@@ -59,6 +63,7 @@ public class Meddle implements ITweaker
 		// the deprecated DynamicMappings class.
 		Launch.classLoader.addClassLoaderExclusion("org.objectweb.asm.");
 
+		blacklistedTweaks.add(Meddle.class.getName());
 
 		// Launchwrapper adds the package without a period on the end, which
 		// covers any similarly-named packages.  We could solve by putting
@@ -79,7 +84,7 @@ public class Meddle implements ITweaker
 	/** Get the current Meddle version. */
 	public static String getVersion()
 	{
-		return "1.3";
+		return "1.3.1";
 	}
 
 	
@@ -119,7 +124,7 @@ public class Meddle implements ITweaker
 		public File jar;
 		public Class<? extends ITweaker> tweakClass;
 		public String transformerClass;
-		String id;
+		public String id;
 
 		public MeddleMod meta;
 
@@ -144,7 +149,7 @@ public class Meddle implements ITweaker
 		if (attr == null) return;
 
 		String tweakClassName = attr.getValue("TweakClass");
-		if (tweakClassName != null && tweakClassName.length() > 0)
+		if (tweakClassName != null && tweakClassName.length() > 0 && !Meddle.blacklistedTweaks.contains(tweakClassName))
 		{
 			LOGGER.info("[Meddle] Found tweak class in " + mod.jar.getName() + " (" + tweakClassName + ")");
 
@@ -271,7 +276,7 @@ public class Meddle implements ITweaker
 			ModContainer mod = new ModContainer(f);
 			discoveredModsList.add(mod);
 			checkJar(mod);
-		}
+		}		
 	}
 
 

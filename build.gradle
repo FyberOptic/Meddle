@@ -34,6 +34,6 @@ targetCompatibility = '1.7'
 
 jar {
     baseName = 'meddle'
-    version = '1.3'
+    version = '1.3.1'
 }
 

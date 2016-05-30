@@ -28,3 +28,7 @@ v1.3 - November 2nd, 2015
  - Added --meddleMain argument, to specify a custom main class to execute (improves support for older game versions).
  - Removed deprecated DynamicMappings wrapper class.
  
+v1.3.1 - May 29th, 2016
+ - Prevent Meddle from trying to load itself when using it in a bootstrap configuration
+ 
+ 
